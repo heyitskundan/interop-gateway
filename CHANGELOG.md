@@ -1,5 +1,19 @@
 # Changelog
 
+## v0.2.0
+
+- `@interop-gateway/connector-smart-generic` — vendor-agnostic SMART on FHIR connector.
+  OAuth2 client-credentials token exchange via `client_secret_post` or the
+  backend-services `private_key_jwt` flow (JWT assertion signed with `jose`); token
+  caching with automatic refresh, optionally persisted through a `SecretsProvider`;
+  scope-checked `read()`/`search()` against a FHIR R4 server, TLS-enforced throughout.
+  Tested against mocked HTTP for unit coverage and against the live SMART Health IT
+  reference sandbox (`r4.smarthealthit.org`) for a real integration check.
+- Browser demo client intentionally does **not** wire up this connector — the
+  backend-services flow requires a private key or client secret, which is a
+  server-side-only credential type and has no safe place in client-side JS. Deferred to
+  a later, separate public/PKCE browser flow.
+
 ## v0.1.0
 
 Repo scaffolding: npm workspace monorepo, CI (lint/build/typecheck/test/audit), weekly
