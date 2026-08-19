@@ -1,0 +1,9 @@
+dist/
+node_modules/
+*.json.bak
+.env
+*.log
+coverage/
+.DS_Store
+*.tsbuildinfo
+.claude/

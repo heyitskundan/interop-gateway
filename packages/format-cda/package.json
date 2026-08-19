@@ -1,0 +1,68 @@
+{
+  "name": "@interop-gateway/format-cda",
+  "version": "0.1.0",
+  "description": "C-CDA <-> FHIR R4 format plugin for interop-gateway, wrapping the published cda-fhir-translator package. Coverage tracks that package's current section support.",
+  "keywords": [
+    "hl7",
+    "cda",
+    "ccda",
+    "fhir",
+    "fhir-r4",
+    "healthcare",
+    "healthtech",
+    "interoperability"
+  ],
+  "license": "Apache-2.0",
+  "author": "Kundan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heyitskundan/interop-gateway.git",
+    "directory": "packages/format-cda"
+  },
+  "homepage": "https://github.com/heyitskundan/interop-gateway#readme",
+  "bugs": {
+    "url": "https://github.com/heyitskundan/interop-gateway/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.ts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
+  },
+  "dependencies": {
+    "@interop-gateway/core": "0.1.0",
+    "cda-fhir-translator": "^0.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "4.1.10",
+    "tsup": "8.5.1",
+    "typescript": "5.7.2",
+    "vitest": "4.1.10"
+  }
+}
