@@ -3,8 +3,7 @@ import { validateStructural } from "./validate.js";
 
 export type FormatName = "hl7v2" | "cda";
 
-/** Contract every `format-*` package implements — `packages/core` never contains
- * translation logic itself, only the plugin registry and validation gate in front of it. */
+/** Converts a raw message to a FHIR resource and back. */
 export interface FormatPlugin {
   readonly name: FormatName;
   toFhir(input: string): unknown;
@@ -20,9 +19,7 @@ export interface InteropGatewayOptions {
   readonly formats?: readonly FormatPlugin[];
 }
 
-/** Top-level entry point consumers instantiate directly. Connector/protocol methods
- * (`connect`, `read`, `write`, `search`, `send`) land here as their packages are built;
- * v0.1.0 wires up `translate`/`validate` only. */
+/** Registers format plugins and exposes `translate()`/`validate()`. */
 export class InteropGateway {
   private readonly formats: Map<FormatName, FormatPlugin>;
 

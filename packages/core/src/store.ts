@@ -23,15 +23,8 @@ export class InMemoryStore implements Store {
 
 const IV_LENGTH = 12;
 
-/**
- * Wraps any `Store` so every value is AES-256-GCM encrypted before it reaches the
- * underlying backend. The DLQ, the audit log, and cached tokens must go through this —
- * nothing that could contain PHI is ever written to disk/network storage unencrypted.
- *
- * Built on the Web Crypto API (`globalThis.crypto.subtle`) rather than `node:crypto` so
- * this class — and everything in `packages/core` that depends on it — works unmodified
- * in both Node (>=18) and a browser bundle, which the demo client relies on.
- */
+/** Wraps a `Store` and encrypts every value with AES-256-GCM before writing it,
+ * decrypting on read. Uses the Web Crypto API. */
 export class EncryptedStore implements Store {
   constructor(
     private readonly backend: Store,
@@ -67,9 +60,8 @@ export class EncryptedStore implements Store {
   }
 }
 
-/** Derives an AES-256-GCM `CryptoKey` from a passphrase via PBKDF2 (100,000 iterations,
- * SHA-256) — the Web Crypto equivalent of `scrypt`, chosen so key derivation also works
- * in a browser bundle. */
+/** Derives an AES-256-GCM `CryptoKey` from a passphrase and salt using PBKDF2 (100,000
+ * iterations, SHA-256). */
 export async function deriveKey(passphrase: string, salt: string): Promise<CryptoKey> {
   const keyMaterial = await crypto.subtle.importKey(
     "raw",

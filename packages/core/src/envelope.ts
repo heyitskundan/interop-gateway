@@ -1,8 +1,4 @@
-/**
- * Every ingested record is wrapped in an envelope before anything else touches it, so
- * it carries a correlation ID through the whole pipeline for audit purposes from the
- * moment it enters the system.
- */
+/** Wraps a payload with a correlation ID, a receipt timestamp, and a source label. */
 export interface Envelope<T = unknown> {
   readonly correlationId: string;
   readonly receivedAt: string;

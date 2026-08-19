@@ -1,8 +1,5 @@
-/**
- * Base error for the whole package. `path` carries a FHIR/HL7 path or a resource
- * identifier shape — never the value at that path, so error output is safe to log
- * without redaction.
- */
+/** Base error class. `path` carries a FHIR/HL7 path or resource identifier shape, never
+ * the value at that path. */
 export class GatewayError extends Error {
   constructor(
     message: string,

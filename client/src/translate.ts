@@ -3,8 +3,7 @@ import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 
-/** Pure translate step, separated from the App component so it's directly unit-testable
- * and so App.tsx only exports the component (keeps Vite's Fast Refresh happy). */
+/** Translates HL7v2 input to a FHIR Bundle using `InteropGateway`. */
 export function translateHl7v2ToFhir(input: string): { output: string } | { error: string } {
   try {
     const bundle = gateway.translate(input, { from: "hl7v2", to: "fhir" });

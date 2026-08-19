@@ -4,13 +4,8 @@ export interface StructuralValidationResult {
   readonly issues: readonly string[];
 }
 
-/**
- * First validation layer before anything is translated: does the input even look like
- * a well-formed HL7v2 message or C-CDA document. Deliberately shallow — deep structural
- * checks belong to `format-hl7v2`/`format-cda`, which already validate as part of
- * translation. This stage exists to fail fast on garbage input with a clear message
- * instead of an opaque parser error further down the pipeline.
- */
+/** Checks whether a string is a structurally well-formed HL7v2 message or C-CDA
+ * document. */
 export function validateStructural(input: string): StructuralValidationResult {
   const trimmed = input.trim();
 

@@ -7,12 +7,7 @@ export interface GrantedScope {
   readonly operations: readonly ScopeOperation[];
 }
 
-/**
- * SMART on FHIR scopes already define what's accessible, but the package enforces them
- * itself too, rather than trusting the token and letting the server reject an
- * out-of-scope call. Every `read()`/`write()`/`search()` entry point checks against this
- * before making a network call.
- */
+/** Checks an operation and resource type against a set of granted SMART on FHIR scopes. */
 export class ScopeSet {
   constructor(private readonly scopes: readonly GrantedScope[]) {}
 

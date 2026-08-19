@@ -4,11 +4,7 @@ export interface SecretRef {
   readonly name: string;
 }
 
-/**
- * Every credential (client secret, backend-services private key, refresh token) flows
- * through this interface. `packages/core` never stores a plaintext secret itself —
- * `secrets-keychain`/`secrets-vault`/`secrets-aws` are the concrete implementations.
- */
+/** Interface for getting, setting, and deleting a credential by reference. */
 export interface SecretsProvider {
   getSecret(ref: SecretRef): Promise<string>;
   setSecret(ref: SecretRef, value: string): Promise<void>;
@@ -18,11 +14,8 @@ export interface SecretsProvider {
 const PRIVATE_KEY_PATTERN = /-----BEGIN (RSA |EC )?PRIVATE KEY-----/;
 const AWS_KEY_PATTERN = /\bAKIA[0-9A-Z]{16}\b/;
 
-/**
- * Guards against a real production credential being passed directly as a config value
- * where a `SecretsProvider` reference was expected — e.g. a caller accidentally pasting
- * a private key string into a connector config instead of a keychain lookup name.
- */
+/** Throws `GatewayError` if `value` matches a PEM private key or an AWS access key ID
+ * pattern. */
 export function assertNotRawCredential(value: string, context: string): void {
   if (PRIVATE_KEY_PATTERN.test(value) || AWS_KEY_PATTERN.test(value)) {
     throw new GatewayError(

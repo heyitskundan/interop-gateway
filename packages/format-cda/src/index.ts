@@ -18,13 +18,8 @@ function wrapTranslationError(cause: unknown, code: string): never {
   throw new GatewayError(message, code, undefined, cause);
 }
 
-/**
- * Translates a C-CDA 2.1 XML document into a FHIR R4 Bundle, returning the mapping
- * trace and warnings alongside the result. Coverage is exactly whatever the installed
- * `cda-fhir-translator` version supports (currently: Allergies, Medications, Problems,
- * Results, Vital Signs) — this wrapper narrows nothing and adds nothing on top of it.
- * Always throws `GatewayError`, never the underlying library's raw error type.
- */
+/** Translates a C-CDA 2.1 XML document into a FHIR R4 Bundle. Returns the mapping trace
+ * and warnings. Throws `GatewayError` on failure. */
 export function translateToFhir(cdaXml: string): TranslateResult {
   try {
     return cdaToFhir(cdaXml);
@@ -33,8 +28,8 @@ export function translateToFhir(cdaXml: string): TranslateResult {
   }
 }
 
-/** Translates a FHIR R4 Bundle into a C-CDA 2.1 XML document, returning the mapping
- * trace and warnings alongside the result. */
+/** Translates a FHIR R4 Bundle into a C-CDA 2.1 XML document. Returns the mapping trace
+ * and warnings. Throws `GatewayError` on failure. */
 export function translateFromFhir(bundle: FhirBundle): TranslateToCdaResult {
   try {
     return fhirToCda(bundle);
@@ -43,12 +38,8 @@ export function translateFromFhir(bundle: FhirBundle): TranslateToCdaResult {
   }
 }
 
-/**
- * The `FormatPlugin` this package exists to provide — register it with
- * `new InteropGateway({ formats: [formatCda] })` to enable `translate()` for C-CDA.
- * `toFhir()` returns the parsed FHIR Bundle object; `fromFhir()` takes a Bundle-shaped
- * object and returns a serialized C-CDA XML string.
- */
+/** `FormatPlugin` for C-CDA. `toFhir()` returns a parsed FHIR Bundle object; `fromFhir()`
+ * returns a serialized C-CDA XML string. */
 export const formatCda: FormatPlugin = {
   name: "cda",
   toFhir(input: string): unknown {

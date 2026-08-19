@@ -1,10 +1,6 @@
 import { GatewayError } from "./errors.js";
 
-/**
- * One entry per PHI-touching operation. `who`/`what`/`resourceType` describe the access
- * event itself — never the clinical content. This is the shape every audit sink
- * (in-memory here, an encrypted `Store`-backed one in production) must accept.
- */
+/** One audit log entry: who did what, when, and on which resource type. */
 export interface AuditEntry {
   readonly correlationId: string;
   readonly who: string;
@@ -41,13 +37,8 @@ async function sha256Hex(input: string): Promise<string> {
     .join("");
 }
 
-/**
- * Append-only, hash-chained audit log — each entry's hash covers the previous entry's
- * hash, so editing or deleting a past entry breaks the chain and `verify()` catches it.
- * A production deployment persists this through an `EncryptedStore`; this in-memory
- * version is what `packages/core` ships and what other packages/tests build on. Built on
- * the Web Crypto API so it also runs unmodified in the demo client's browser bundle.
- */
+/** Append-only, in-memory, hash-chained audit log. Each entry's hash covers the previous
+ * entry's hash. */
 export class HashChainedAuditLog implements AuditSink {
   private readonly chain: Array<{ entry: AuditEntry; hash: string }> = [];
 
@@ -62,8 +53,7 @@ export class HashChainedAuditLog implements AuditSink {
     return this.chain;
   }
 
-  /** Recomputes the chain and compares — false means an entry was altered or removed
-   * after being appended. */
+  /** Recomputes the hash chain and returns whether it matches the stored hashes. */
   async verify(): Promise<boolean> {
     let previousHash = "genesis";
     for (const { entry, hash } of this.chain) {

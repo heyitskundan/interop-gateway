@@ -6,19 +6,15 @@ export interface ExecResult {
   readonly stderr: string;
 }
 
-/**
- * Runs `command` with `args` (never through a shell, so no injection risk regardless of
- * secret content) and optionally writes `stdin` to the child process before closing it.
- * Injectable so tests can drive this provider without touching a real OS keychain.
- */
+/** Runs `command` with `args` via `spawn` (no shell) and optionally writes `stdin` to
+ * the child process before closing it. */
 export type Executor = (
   command: string,
   args: readonly string[],
   stdin?: string,
 ) => Promise<ExecResult>;
 
-/** Exported only so its `spawn` plumbing can be exercised directly in tests against a
- * harmless real command, without depending on `security`/`secret-tool` being installed. */
+/** Default `Executor`, implemented with `node:child_process.spawn`. */
 export const defaultExecutor: Executor = (command, args, stdin) =>
   new Promise((resolve, reject) => {
     const child = spawn(command, args as string[], { stdio: ["pipe", "pipe", "pipe"] });
@@ -65,14 +61,11 @@ function assertValidName(name: string): void {
 }
 
 /**
- * `SecretsProvider` backed by the local OS keychain — macOS Keychain via the `security`
- * CLI, Linux Secret Service via `secret-tool`. This is the dev-only default named in the
- * architecture plan; production deployments should use `secrets-vault` or `secrets-aws`.
+ * `SecretsProvider` backed by the local OS keychain: `security` on macOS, `secret-tool`
+ * on Linux.
  *
- * Known limitation: on macOS, `security add-generic-password -w <value>` passes the
- * secret as a process argument, which is briefly visible to other processes on the same
- * machine via `ps`. That's an acceptable trade-off for a local dev credential store, not
- * for production secrets — hence the dev-only framing above.
+ * On macOS, `security add-generic-password -w <value>` passes the secret as a process
+ * argument, visible to other processes on the same machine via `ps`.
  */
 export class KeychainSecretsProvider implements SecretsProvider {
   private readonly service: string;

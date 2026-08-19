@@ -1,10 +1,6 @@
 import { TlsError } from "./errors.js";
 
-/**
- * Every outbound connection (SMART connector, protocol-http, MLLP-over-TLS) must route
- * its target URL through this guard first. Rejects anything that isn't https — including
- * a downgraded/plaintext redirect target — before a single byte is sent.
- */
+/** Parses a URL and throws `TlsError` if its scheme is not https. */
 export function enforceTls(url: string | URL): URL {
   const parsed = typeof url === "string" ? new URL(url) : url;
   if (parsed.protocol !== "https:") {
