@@ -62,6 +62,31 @@ const options: SmartClientOptions = {
 const client = new SmartClient(options);
 ```
 
+## Write support
+
+```js
+const created = await client.create("Patient", patientResource);
+// { ok: true, status: 201, resource: {...} }
+
+const conflict = await client.update("Patient", "123", patientResource);
+// { ok: false, status: 409, code: "CONFLICT", path: "Patient/123", issues: {...} }
+
+const results = await client.writeBatch([
+  { kind: "create", resourceType: "Patient", resource: patientResource },
+  { kind: "update", resourceType: "Observation", id: "obs-1", resource: observationResource },
+  { kind: "delete", resourceType: "Encounter", id: "enc-1" },
+]);
+// One WriteResult per operation, in order. One operation failing (a scope violation, a
+// 409/412 conflict, a 422 validation error, a network failure) does not stop the rest
+// of the batch from running.
+```
+
+`create`/`update`/`delete` never throw for a server-side rejection — they return a
+`WriteResult` (`{ ok: true, status, resource }` or `{ ok: false, status, code, path,
+issues }`) so a caller can inspect the outcome without a try/catch per call. They do
+throw `ScopeError` if the resource type/operation isn't in `scopes`, before any network
+call.
+
 ## Scope enforcement
 
 `SmartClient` checks the `scopes` you configured before making any request — a

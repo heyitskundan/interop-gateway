@@ -5,7 +5,7 @@ const REFRESH_MARGIN_MS = 30_000;
 
 /** Returns a cached access token if it has more than 30 seconds left before expiry,
  * otherwise runs the token exchange again. Persists the token through `secrets` (if
- * given) so it survives across `TokenManager` instances. */
+ * given). */
 export class TokenManager {
   private cached: AccessToken | undefined;
 

@@ -1,5 +1,23 @@
 # Changelog
 
+## v0.3.0
+
+- `@interop-gateway/connector-smart-generic` — full CRUD write support: `create()`,
+  `update()`, `delete()`, each scope-checked and returning a `WriteResult`
+  (`{ ok: true, status, resource }` or `{ ok: false, status, code, path, issues }`)
+  instead of throwing on a server-side rejection. `code` classifies the failure
+  (`CONFLICT` for 409/412, `VALIDATION_FAILED` for 422, `REQUEST_FAILED` otherwise).
+  `writeBatch()` runs a list of create/update/delete operations and collects one
+  `WriteResult` per operation — one operation failing does not stop the rest of the
+  batch from running.
+- `@interop-gateway/protocol-mllp` — MLLP receive and send. `MllpServer` unframes
+  incoming MLLP messages, hands each to a handler, and writes back an ACK/NACK built
+  from the handler's result (a thrown handler error becomes an `AE`). `sendMllpMessage`
+  frames and sends a message, waits for the ACK/NACK, and retries (default 3 attempts)
+  on connection failure or timeout — never on a received NACK, which is returned to the
+  caller instead. Tested against real TCP connections on localhost (server + client, no
+  mocking), including retry-exhaustion and timeout paths.
+
 ## v0.2.0
 
 - `@interop-gateway/connector-smart-generic` — vendor-agnostic SMART on FHIR connector.
