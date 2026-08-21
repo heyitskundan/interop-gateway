@@ -55,7 +55,7 @@
   },
   "dependencies": {
     "@interop-gateway/core": "0.1.0",
-    "hl7-fhir-translator": "^0.3.0"
+    "hl7-fhir-translator": "^1.0.1"
   },
   "devDependencies": {
     "@types/node": "22.10.2",
