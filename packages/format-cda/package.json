@@ -1,7 +1,7 @@
 {
   "name": "@interop-gateway/format-cda",
   "version": "0.1.0",
-  "description": "C-CDA <-> FHIR R4 format plugin for interop-gateway, wrapping the published cda-fhir-translator package. Coverage tracks that package's current section support.",
+  "description": "C-CDA <-> FHIR R4 format plugin for interop-gateway, wrapping the published cda-fhir-translator package.",
   "keywords": [
     "hl7",
     "cda",
@@ -56,7 +56,7 @@
   },
   "dependencies": {
     "@interop-gateway/core": "0.1.0",
-    "cda-fhir-translator": "^0.1.0"
+    "cda-fhir-translator": "^1.0.0"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

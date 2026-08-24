@@ -6,16 +6,6 @@ package. This package adds no translation logic of its own — it registers
 `cda-fhir-translator`'s deterministic mapper as an `@interop-gateway/core` `FormatPlugin`
 and normalizes its errors to `GatewayError`.
 
-## Coverage — read before relying on this for a document type you need
-
-`cda-fhir-translator` is still work in progress. As of this package's `0.1.0`, the
-underlying library covers 5 C-CDA sections both directions: **Allergies, Medications,
-Problems, Results, Vital Signs**, always as a Continuity of Care Document (`fhirToCda`
-has no `documentType` option yet — see that package's own roadmap). This wrapper tracks
-the installed `cda-fhir-translator` version's coverage exactly; it narrows nothing and
-adds nothing on top of it. Check `cda-fhir-translator`'s own CHANGELOG for what's
-supported in the version you have installed before assuming a section is covered.
-
 ## Install
 
 ```bash
