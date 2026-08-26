@@ -1,5 +1,44 @@
 # Changelog
 
+## v0.4.0
+
+Full plumbing coverage: every package named in the README's package table now exists
+and passes.
+
+- `@interop-gateway/protocol-http` — `HttpIngestServer` (plain HTTP listener; expects a
+  TLS-terminating proxy in front in production, matching `protocol-mllp`'s posture) and
+  `sendHttpMessage` (TLS-enforced delivery, retries on network failure/timeout, never on
+  a non-2xx response, which is returned to the caller instead).
+- `@interop-gateway/protocol-file` — `FileIngestWatcher` (polls a directory, routes each
+  file to `processed/` or `error/` with an error sidecar on failure, never re-ingests
+  its own output) and `writeFileMessage` (atomic write via temp-file-then-rename).
+  Deliberately scoped to local filesystem only — pairs with an SFTP daemon rather than
+  embedding an SFTP client of its own.
+- `@interop-gateway/secrets-vault` — `SecretsProvider` over a HashiCorp Vault KV v2
+  secrets engine, talking to Vault's HTTP API directly (no new dependency beyond
+  `fetch`). `deleteSecret` soft-deletes via the `data` endpoint, not `metadata`, so a
+  delete stays recoverable through `vault kv undelete`.
+- `@interop-gateway/secrets-aws` — `SecretsProvider` over AWS Secrets Manager's JSON API,
+  signed via `aws4fetch` rather than the full AWS SDK. `setSecret` calls
+  `PutSecretValue` first and falls back to `CreateSecret` only on a
+  `ResourceNotFoundException`.
+- `@interop-gateway/validate-us-core` — required-element structural checks for 15 US
+  Core profiles matching the resource types `hl7-fhir-translator`/`cda-fhir-translator`
+  can produce. Documented explicitly as this package's own reading of each profile's
+  Must Support elements, not independently re-verified against fetched
+  StructureDefinition JSON, with terminology binding entirely out of scope.
+- `@interop-gateway/engine` — YAML-configured pipeline runtime: wires a protocol source
+  (`mllp`/`http`/`file`), a format (`hl7v2`/`cda`), and a destination (`http`/`file`)
+  together, with a `run`/`validate` CLI and a Dockerfile. A translation or delivery
+  failure for one message reports through the source's own failure channel (an `AE`
+  ACK, a 422 response, the `error/` subdirectory) rather than stopping the pipeline.
+- `@interop-gateway/mcp-server` — MCP tool surface (`translate`, `validate`) over
+  `InteropGateway`, tested against a real MCP client/server pair over
+  `InMemoryTransport`.
+- `client` — the browser demo now supports both formats: a source-format selector
+  switches between the HL7v2 and a new synthetic C-CDA sample, both translating through
+  the same `InteropGateway` instance locally in the browser.
+
 ## v0.3.0
 
 - `@interop-gateway/connector-smart-generic` — full CRUD write support: `create()`,
