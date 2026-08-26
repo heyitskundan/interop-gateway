@@ -1,5 +1,16 @@
+import { translateToFhir as hl7ToFhir } from "@interop-gateway/format-hl7v2";
+import { translateToFhir as cdaToFhirFn } from "@interop-gateway/format-cda";
+import type { Direction, Format } from "./types.js";
+
+export interface Sample {
+  readonly label: string;
+  readonly format: Format;
+  readonly direction: Direction;
+  readonly content: string;
+}
+
 // SYNTHETIC DATA ONLY — NOT REAL PHI
-export const SAMPLE_ADT_A01 = [
+const SAMPLE_ADT_A01 = [
   "MSH|^~\\&|HIS|HOSP|ADT|HOSP|20240101120000||ADT^A01|MSG001|P|2.5",
   "EVN|A01|20240101120000||01|7802^Rivera^Carlos^^RN|20240101115500|HOSP",
   "PID|1||MRN12345^^^HOSP^MR||Doe^John^A||19800515|M|||123 Main St^^Springfield^IL^62701^USA||5559876543^PRN^PH",
@@ -7,7 +18,7 @@ export const SAMPLE_ADT_A01 = [
 ].join("\r");
 
 // SYNTHETIC DATA ONLY — NOT REAL PHI
-export const SAMPLE_CDA_CCD = `<?xml version="1.0" encoding="UTF-8"?>
+const SAMPLE_CDA_CCD = `<?xml version="1.0" encoding="UTF-8"?>
 <!-- SYNTHETIC DATA ONLY — NOT REAL PHI -->
 <ClinicalDocument xmlns="urn:hl7-org:v3">
   <code code="34133-9" codeSystem="2.16.840.1.113883.6.1" displayName="Summarization of episode note"/>
@@ -87,3 +98,35 @@ export const SAMPLE_CDA_CCD = `<?xml version="1.0" encoding="UTF-8"?>
   </component>
 </ClinicalDocument>
 `;
+
+// Generated from the constants above at module load, rather than hand-duplicated, so
+// they can never drift out of sync with what the format packages actually produce.
+const hl7Bundle = hl7ToFhir(SAMPLE_ADT_A01).translated;
+const cdaBundle = JSON.stringify(cdaToFhirFn(SAMPLE_CDA_CCD).bundle, null, 2);
+
+export const SAMPLES: Sample[] = [
+  {
+    label: "ADT^A01 admit message",
+    format: "hl7v2",
+    direction: "toFhir",
+    content: SAMPLE_ADT_A01,
+  },
+  {
+    label: "FHIR Bundle (roundtrip of the ADT^A01 above)",
+    format: "hl7v2",
+    direction: "fromFhir",
+    content: hl7Bundle,
+  },
+  {
+    label: "Synthetic CCD (Allergies, Problems, Medications)",
+    format: "cda",
+    direction: "toFhir",
+    content: SAMPLE_CDA_CCD,
+  },
+  {
+    label: "FHIR Bundle (roundtrip of the CCD above)",
+    format: "cda",
+    direction: "fromFhir",
+    content: cdaBundle,
+  },
+];

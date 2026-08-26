@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@interop-gateway/core": "*",
+    "@interop-gateway/format-cda": "*",
     "@interop-gateway/format-hl7v2": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
@@ -26,7 +27,10 @@
     "@types/react-dom": "^18.3.5",
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/coverage-v8": "^4.1.10",
+    "autoprefixer": "^10.4.20",
     "jsdom": "^30.0.1",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
     "vite": "^6.0.7",
     "vitest": "^4.1.10"

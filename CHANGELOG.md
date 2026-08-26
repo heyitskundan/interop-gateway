@@ -35,9 +35,15 @@ and passes.
 - `@interop-gateway/mcp-server` — MCP tool surface (`translate`, `validate`) over
   `InteropGateway`, tested against a real MCP client/server pair over
   `InMemoryTransport`.
-- `client` — the browser demo now supports both formats: a source-format selector
-  switches between the HL7v2 and a new synthetic C-CDA sample, both translating through
-  the same `InteropGateway` instance locally in the browser.
+- `client` — rebuilt on the same pattern as `hl7-fhir-translator`'s and
+  `cda-fhir-translator`'s demo sites: a format toggle (HL7v2/C-CDA) crossed with a
+  direction toggle (→ FHIR / FHIR →), a field-level mapping trail tab, syntax
+  highlighting (HL7v2/XML/JSON), shape-based format+direction auto-detection, dark
+  mode, and a four-page docs site (Getting Started, API Reference, Packages, Changelog)
+  covering all 13 packages. Bidirectional translation for both formats now goes through
+  each format package's own `translateToFhir`/`translateFromFhir` directly (preserving
+  the mapping trail) rather than through `InteropGateway.translate()`, which only
+  returns the bare result and doesn't yet support the `fhir -> X` direction.
 
 ## v0.3.0
 
