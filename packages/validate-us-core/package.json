@@ -1,0 +1,63 @@
+{
+  "name": "@interop-gateway/validate-us-core",
+  "version": "0.1.0",
+  "description": "Required-element structural checks against a subset of US Core FHIR profiles.",
+  "keywords": [
+    "fhir",
+    "us-core",
+    "validation",
+    "healthcare",
+    "healthtech",
+    "interoperability"
+  ],
+  "license": "Apache-2.0",
+  "author": "Kundan",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/heyitskundan/interop-gateway.git",
+    "directory": "packages/validate-us-core"
+  },
+  "homepage": "https://github.com/heyitskundan/interop-gateway#readme",
+  "bugs": {
+    "url": "https://github.com/heyitskundan/interop-gateway/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": {
+        "import": "./dist/index.d.ts",
+        "require": "./dist/index.d.cts"
+      },
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "prepublishOnly": "npm run build && npm run typecheck && npm test"
+  },
+  "dependencies": {},
+  "devDependencies": {
+    "@types/node": "22.10.2",
+    "@vitest/coverage-v8": "4.1.10",
+    "tsup": "8.5.1",
+    "typescript": "5.7.2",
+    "vitest": "4.1.10"
+  }
+}
