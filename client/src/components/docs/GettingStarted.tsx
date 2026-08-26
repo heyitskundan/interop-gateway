@@ -48,12 +48,25 @@ export function GettingStarted({ goPackages }: { goPackages: () => void }) {
       </h2>
       <p style={muted}>Translating an HL7v2 message into a FHIR Bundle:</p>
       <CodeBlock
-        lang="js"
-        code={`import { InteropGateway } from "@interop-gateway/core";
+        variants={[
+          {
+            lang: "js",
+            code: `import { InteropGateway } from "@interop-gateway/core";
 import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
-const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });`}
+const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });`,
+          },
+          {
+            lang: "ts",
+            code: `import { InteropGateway, type TranslateOptions } from "@interop-gateway/core";
+import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
+
+const gateway = new InteropGateway({ formats: [formatHl7v2] });
+const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
+const bundle = gateway.translate(hl7v2Message, options);`,
+          },
+        ]}
       />
       <p style={muted}>
         Swap in <code>formatCda</code> from <code>@interop-gateway/format-cda</code> and{" "}

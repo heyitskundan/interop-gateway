@@ -93,6 +93,18 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Getting Started" })).toBeInTheDocument();
   });
 
+  it("switches a code block's content between its JS and TS variants in place", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("radio", { name: "Docs" }));
+
+    expect(document.body.textContent).not.toContain("TranslateOptions");
+
+    await user.click(screen.getAllByRole("tab", { name: "TS" })[0]!);
+
+    expect(document.body.textContent).toContain("TranslateOptions");
+  });
+
   it("shows the field-mapping trail when the Field Mappings tab is selected", async () => {
     const user = userEvent.setup();
     render(<App />);

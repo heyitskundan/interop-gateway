@@ -49,13 +49,26 @@ interface FormatPlugin {
         type; call these directly if you need it (this demo's own Translator tab does).
       </p>
       <CodeBlock
-        lang="js"
-        code={`import { translateToFhir } from "@interop-gateway/format-hl7v2";
+        variants={[
+          {
+            lang: "js",
+            code: `import { translateToFhir } from "@interop-gateway/format-hl7v2";
 
 const result = translateToFhir(rawHl7v2Message);
 result.translated;  // FHIR Bundle, JSON string
 result.mappings;     // [{ source, target, value, note? }, ...]
-result.warnings;     // string[] — segments/fields with no mapping`}
+result.warnings;     // string[] — segments/fields with no mapping`,
+          },
+          {
+            lang: "ts",
+            code: `import { translateToFhir, type TranslationResult } from "@interop-gateway/format-hl7v2";
+
+const result: TranslationResult = translateToFhir(rawHl7v2Message);
+result.translated;  // FHIR Bundle, JSON string
+result.mappings;     // [{ source, target, value, note? }, ...]
+result.warnings;     // string[] — segments/fields with no mapping`,
+          },
+        ]}
       />
 
       <h2 id="protocols" className="mt-8">
@@ -91,8 +104,10 @@ function writeFileMessage(content, { directory, fileName? }): Promise<string>; /
         a FHIR R4 server. TLS-enforced on every call.
       </p>
       <CodeBlock
-        lang="js"
-        code={`import { SmartClient } from "@interop-gateway/connector-smart-generic";
+        variants={[
+          {
+            lang: "js",
+            code: `import { SmartClient } from "@interop-gateway/connector-smart-generic";
 
 const client = new SmartClient({
   baseUrl: "https://r4.smarthealthit.org",
@@ -101,7 +116,23 @@ const client = new SmartClient({
 });
 
 const patient = await client.read("Patient", "123");
-const result = await client.create("Observation", newObservation); // { ok, status, resource } — never throws on a 4xx/5xx`}
+const result = await client.create("Observation", newObservation); // { ok, status, resource } — never throws on a 4xx/5xx`,
+          },
+          {
+            lang: "ts",
+            code: `import { SmartClient, type SmartClientOptions } from "@interop-gateway/connector-smart-generic";
+
+const options: SmartClientOptions = {
+  baseUrl: "https://r4.smarthealthit.org",
+  auth: { method: "client_secret_post", tokenUrl, clientId, clientSecret, scope: "system/*.read" },
+  scopes: [{ resourceType: "Patient", operations: ["read", "search"] }],
+};
+const client = new SmartClient(options);
+
+const patient = await client.read("Patient", "123");
+const result = await client.create("Observation", newObservation); // { ok, status, resource } — never throws on a 4xx/5xx`,
+          },
+        ]}
       />
 
       <h2 id="secrets" className="mt-8">
@@ -133,13 +164,26 @@ new AwsSecretsManagerProvider({ region, credentials })  // from secrets-aws — 
         package's own README for exactly what's covered.
       </p>
       <CodeBlock
-        lang="js"
-        code={`import { validateUsCore } from "@interop-gateway/validate-us-core";
+        variants={[
+          {
+            lang: "js",
+            code: `import { validateUsCore } from "@interop-gateway/validate-us-core";
 
 const result = validateUsCore(patientResource);
 result.supported; // false if this package has no rule table for the resourceType
 result.valid;
-result.issues;    // string[]`}
+result.issues;    // string[]`,
+          },
+          {
+            lang: "ts",
+            code: `import { validateUsCore, type UsCoreValidationResult } from "@interop-gateway/validate-us-core";
+
+const result: UsCoreValidationResult = validateUsCore(patientResource);
+result.supported; // false if this package has no rule table for the resourceType
+result.valid;
+result.issues;    // string[]`,
+          },
+        ]}
       />
 
       <h2 id="errors" className="mt-8">
