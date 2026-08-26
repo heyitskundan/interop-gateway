@@ -6,6 +6,9 @@ old-style HL7v2/CDA messages and modern FHIR. One `connect()`/`read()`/`write()`
 `send()`/`translate()`/`validate()` API instead of ten different libraries for auth,
 format parsing, and delivery.
 
+See [`docs/architecture.md`](./docs/architecture.md) for the package graph, data flow,
+and security model as actually built.
+
 ## Packages
 
 | Package                                    | What it does                                                                                                   |
