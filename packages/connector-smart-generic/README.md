@@ -126,6 +126,17 @@ partnership: the SMART Health IT reference sandbox (`r4.smarthealthit.org` for o
 reads, `launch.smarthealthit.org` for the full OAuth backend-services flow) and Epic's
 `open.epic` sandbox.
 
+`test/integration.test.ts` has two tests against the live `r4.smarthealthit.org`
+sandbox, opt-in only:
+
+```bash
+RUN_LIVE_SANDBOX_TESTS=1 npm run test -w packages/connector-smart-generic
+```
+
+Skipped by default (including in CI/`npm test` at the repo root) — an external network
+dependency this far outside the repo's control has no place gating an automated
+pipeline.
+
 ## License
 
 Apache-2.0 — see [LICENSE](../../LICENSE).
