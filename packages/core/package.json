@@ -34,6 +34,14 @@
       },
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./node": {
+      "types": {
+        "import": "./dist/node.d.ts",
+        "require": "./dist/node.d.cts"
+      },
+      "import": "./dist/node.js",
+      "require": "./dist/node.cjs"
     }
   },
   "bin": {

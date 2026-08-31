@@ -27,9 +27,15 @@ jobs:
 
       - run: npm ci
 
-      - run: npm run build --workspaces --if-present
+      # Explicit dependency order, not --workspaces (which iterates workspaces in
+      # whatever order npm/the OS happens to discover them, not topological order) —
+      # engine and mcp-server import type declarations from most of the other 12
+      # packages, so building out of order fails with "cannot find module" for
+      # whichever dependency wasn't built yet. client is built separately below with
+      # GITHUB_PAGES set, so it's excluded here.
+      - run: npm run build -w packages/core -w packages/validate-us-core -w packages/format-hl7v2 -w packages/format-cda -w packages/protocol-mllp -w packages/protocol-http -w packages/protocol-file -w packages/secrets-keychain -w packages/secrets-vault -w packages/secrets-aws -w packages/connector-smart-generic -w packages/engine -w packages/mcp-server
 
-      - run: npm test --workspaces --if-present
+      - run: npm run test -w packages/core -w packages/validate-us-core -w packages/format-hl7v2 -w packages/format-cda -w packages/protocol-mllp -w packages/protocol-http -w packages/protocol-file -w packages/secrets-keychain -w packages/secrets-vault -w packages/secrets-aws -w packages/connector-smart-generic -w packages/engine -w packages/mcp-server -w client
 
       - run: npm run build -w client
         env:

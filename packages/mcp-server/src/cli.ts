@@ -4,7 +4,7 @@ import { createInteropGatewayMcpServer } from "./server.js";
 
 /** Exported so tests can construct the server without going through stdio. */
 export async function main(): Promise<void> {
-  const server = createInteropGatewayMcpServer();
+  const server = await createInteropGatewayMcpServer();
   const transport = new StdioServerTransport();
   await server.connect(transport);
 }

@@ -42,13 +42,15 @@ export const packagesRail: RailItem[] = [
 export const advancedRail: RailItem[] = [
   { href: "#overview", label: "Overview" },
   { href: "#envelope", label: "Envelopes and correlation IDs" },
-  { href: "#pipeline", label: "Composable pipelines" },
   { href: "#storage", label: "Encrypted storage" },
   { href: "#scope", label: "Scope enforcement" },
   { href: "#tls", label: "TLS enforcement" },
   { href: "#audit", label: "Tamper-evident audit log" },
+  { href: "#dead-letter", label: "Dead-letter queue and replay" },
   { href: "#secrets-guard", label: "Raw-credential guard" },
   { href: "#connector-internals", label: "connector-smart-generic internals" },
+  { href: "#connector-authorize", label: "connector-smart-generic: authorization_code + PKCE" },
+  { href: "#connector-bulk-export", label: "connector-smart-generic: Bulk Data ($export)" },
 ];
 
 export const mcpRail: RailItem[] = [

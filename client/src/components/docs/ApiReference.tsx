@@ -168,10 +168,13 @@ function writeFileMessage(content, { directory, fileName? }): Promise<string>; /
         SMART on FHIR connector
       </h2>
       <p style={muted}>
-        <code>@interop-gateway/connector-smart-generic</code> — OAuth2 client-credentials (
-        <code>client_secret_post</code>) or backend-services (<code>private_key_jwt</code>, JWT
-        assertion signed with <code>jose</code>), scope-checked read/search/write against a FHIR R4
-        server. TLS-enforced on every call.
+        <code>@interop-gateway/connector-smart-generic</code> — backend-services auth (
+        <code>client_secret_post</code>, or <code>private_key_jwt</code> with a JWT assertion signed
+        via <code>jose</code>) or interactive <code>authorization_code</code>+PKCE (the
+        patient/clinician-facing SMART App Launch — this package builds the authorization URL and
+        exchanges the returned code; the browser redirect/consent itself is the caller's to drive),
+        scope-checked read/search/write against a FHIR R4 server, and Bulk Data <code>$export</code>
+        . TLS-enforced on every call.
       </p>
       <CodeBlock
         variants={[
@@ -204,6 +207,28 @@ const result = await client.create("Observation", newObservation); // { ok, stat
           },
         ]}
       />
+      <p style={muted}>
+        Interactive launch (PKCE) and Bulk Data <code>$export</code> — see the package's own README
+        for the full walkthrough (redirect, callback, refresh):
+      </p>
+      <CodeBlock
+        lang="ts"
+        code={`import { buildAuthorizationUrl, exchangeAuthorizationCode } from "@interop-gateway/connector-smart-generic";
+
+const { url, codeVerifier, state } = await buildAuthorizationUrl({
+  authorizeUrl, clientId, redirectUri, scope: "launch/patient patient/Patient.read offline_access",
+});
+// redirect the user's browser to \`url\`; persist codeVerifier/state for the callback
+
+const token = await exchangeAuthorizationCode({ tokenUrl, code, redirectUri, clientId, codeVerifier });
+// token.patient / token.refreshToken — pass as auth.initialToken into a SmartClient
+
+const job = await client.startBulkExport({ level: "group", groupId: "cohort-1" });
+const completed = await client.pollBulkExportUntilComplete(job); // waits Retry-After between polls
+for (const file of completed.output) {
+  await client.downloadBulkExportFile(file, { requiresAccessToken: completed.requiresAccessToken });
+}`}
+      />
 
       <h2 id="secrets" className="mt-8">
         Secrets providers
@@ -229,12 +254,14 @@ new AwsSecretsManagerProvider({ region, credentials })  // from secrets-aws — 
         US Core validation
       </h2>
       <p style={muted}>
-        <code>@interop-gateway/validate-us-core</code> — required-element checks for 15 resource
-        types. Structural only, not a terminology-binding validator — see the package's own README
-        for exactly what's covered. <code>InteropGateway.translate()</code> itself still doesn't
-        call it — call it directly on <code>translate()</code>'s output, same as below — but{" "}
-        <code>engine</code>'s pipeline runs it automatically when <code>validateProfile: true</code>{" "}
-        is set in <code>PipelineConfig</code>, and <code>mcp-server</code> exposes it as its own{" "}
+        <code>@interop-gateway/validate-us-core</code> — required-element presence, max-cardinality
+        shape, and fixed-code-value binding checks for 15 built-in resource types, plus whatever a
+        caller registers via <code>registerProfile()</code>. Not a terminology-binding validator for
+        external code systems (LOINC/SNOMED/RxNorm) — see the package's own README for exactly
+        what's covered. <code>InteropGateway.translate()</code> itself still doesn't call it — call
+        it directly on <code>translate()</code>'s output, same as below — but <code>engine</code>'s
+        pipeline runs it automatically when <code>validateProfile: true</code> is set in{" "}
+        <code>PipelineConfig</code>, and <code>mcp-server</code> exposes it as its own{" "}
         <code>validateUsCore</code> tool.
       </p>
       <CodeBlock

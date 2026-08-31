@@ -3,6 +3,14 @@ import { TokenManager } from "./token-manager.js";
 import type { AuthConfig } from "./token.js";
 import type { SecretsProvider } from "@interop-gateway/core";
 import { classifyWriteFailureStatus, type WriteOperation, type WriteResult } from "./write.js";
+import {
+  buildExportUrl,
+  parseCompletedExportBody,
+  type BulkExportJob,
+  type BulkExportOutputFile,
+  type BulkExportStatus,
+  type StartBulkExportOptions,
+} from "./bulk-export.js";
 
 export interface SmartClientOptions {
   readonly baseUrl: string;
@@ -127,6 +135,149 @@ export class SmartClient {
       path,
       issues,
     };
+  }
+
+  /** Kicks off a Bulk Data `$export` (system, `Patient/$export`, or
+   * `Group/[id]/$export`) and returns the job to poll with `checkBulkExportStatus()`.
+   * Throws if the server doesn't respond `202 Accepted` with a `Content-Location`
+   * header, per the IG's kick-off contract — anything else means the server rejected
+   * the request outright, not that the export is running. */
+  async startBulkExport(options: StartBulkExportOptions): Promise<BulkExportJob> {
+    const token = await this.tokens.getToken();
+    const url = buildExportUrl(this.baseUrl, options);
+    const response = await fetch(enforceTls(url), {
+      headers: {
+        Authorization: `${token.tokenType} ${token.accessToken}`,
+        Accept: "application/fhir+json",
+        Prefer: "respond-async",
+      },
+    });
+
+    if (response.status !== 202) {
+      throw new GatewayError(
+        `Bulk export kick-off failed: HTTP ${response.status}`,
+        "BULK_EXPORT_KICKOFF_FAILED",
+        url.pathname,
+      );
+    }
+    const statusUrl = response.headers.get("content-location");
+    if (!statusUrl) {
+      throw new GatewayError(
+        "Bulk export kick-off response is missing a Content-Location header",
+        "BULK_EXPORT_KICKOFF_FAILED",
+        url.pathname,
+      );
+    }
+    return { statusUrl };
+  }
+
+  /** Checks a bulk export job once — `"in-progress"` (202, optionally with progress/
+   * retry-after info), `"completed"` (200, with the output file list), or `"error"`
+   * (any other status). Does not loop; call `pollBulkExportUntilComplete()` for that. */
+  async checkBulkExportStatus(job: BulkExportJob): Promise<BulkExportStatus> {
+    const token = await this.tokens.getToken();
+    const url = enforceTls(job.statusUrl);
+    const response = await fetch(url, {
+      headers: {
+        Authorization: `${token.tokenType} ${token.accessToken}`,
+        Accept: "application/fhir+json",
+      },
+    });
+
+    if (response.status === 202) {
+      const progress = response.headers.get("x-progress");
+      const retryAfter = response.headers.get("retry-after");
+      return {
+        status: "in-progress",
+        ...(progress !== null ? { progress } : {}),
+        ...(retryAfter !== null && !Number.isNaN(Number(retryAfter))
+          ? { retryAfterSeconds: Number(retryAfter) }
+          : {}),
+      };
+    }
+
+    if (response.status === 200) {
+      const body: unknown = await response.json();
+      return parseCompletedExportBody(body, url.origin);
+    }
+
+    const issues: unknown = await response.json().catch(() => undefined);
+    return { status: "error", issues };
+  }
+
+  /** Polls `checkBulkExportStatus()` until it reports `"completed"`, waiting the
+   * server's `Retry-After` between attempts when given, `intervalMs` (default 1000)
+   * otherwise. Throws `GatewayError`/`BULK_EXPORT_FAILED` on an `"error"` status, or
+   * `BULK_EXPORT_TIMEOUT` after `timeoutMs` (default 5 minutes) with no completion. */
+  async pollBulkExportUntilComplete(
+    job: BulkExportJob,
+    options: { readonly intervalMs?: number; readonly timeoutMs?: number } = {},
+  ): Promise<Extract<BulkExportStatus, { status: "completed" }>> {
+    const timeoutMs = options.timeoutMs ?? 5 * 60_000;
+    const start = Date.now();
+    for (;;) {
+      const result = await this.checkBulkExportStatus(job);
+      if (result.status === "completed") return result;
+      if (result.status === "error") {
+        throw new GatewayError(
+          "Bulk export failed",
+          "BULK_EXPORT_FAILED",
+          undefined,
+          result.issues,
+        );
+      }
+      if (Date.now() - start > timeoutMs) {
+        throw new GatewayError("Bulk export polling timed out", "BULK_EXPORT_TIMEOUT");
+      }
+      const waitMs =
+        result.retryAfterSeconds !== undefined
+          ? result.retryAfterSeconds * 1000
+          : (options.intervalMs ?? 1000);
+      await new Promise((resolve) => setTimeout(resolve, waitMs));
+    }
+  }
+
+  /** Downloads one `output[].url` file's raw NDJSON text — parse it with this
+   * package's `parseNdjson()`. Sends the bearer token only when `requiresAccessToken`
+   * is `true` (from the completed job's status), matching the IG's rule that some
+   * servers serve output files unauthenticated (e.g. short-lived signed URLs). */
+  async downloadBulkExportFile(
+    file: BulkExportOutputFile,
+    options: { readonly requiresAccessToken?: boolean } = {},
+  ): Promise<string> {
+    const url = enforceTls(file.url);
+    const headers: Record<string, string> = {};
+    if (options.requiresAccessToken) {
+      const token = await this.tokens.getToken();
+      headers.Authorization = `${token.tokenType} ${token.accessToken}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) {
+      throw new GatewayError(
+        `Bulk export file download failed: HTTP ${response.status}`,
+        "BULK_EXPORT_DOWNLOAD_FAILED",
+        url.pathname,
+      );
+    }
+    return response.text();
+  }
+
+  /** Cancels a bulk export job the server hasn't finished yet — `DELETE` on the status
+   * URL, per the IG. Throws on a non-2xx response. */
+  async cancelBulkExport(job: BulkExportJob): Promise<void> {
+    const token = await this.tokens.getToken();
+    const url = enforceTls(job.statusUrl);
+    const response = await fetch(url, {
+      method: "DELETE",
+      headers: { Authorization: `${token.tokenType} ${token.accessToken}` },
+    });
+    if (!response.ok) {
+      throw new GatewayError(
+        `Bulk export cancel failed: HTTP ${response.status}`,
+        "BULK_EXPORT_CANCEL_FAILED",
+        url.pathname,
+      );
+    }
   }
 
   private async request(url: URL): Promise<unknown> {

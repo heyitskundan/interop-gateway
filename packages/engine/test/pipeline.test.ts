@@ -2,11 +2,12 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { HashChainedAuditLog } from "@interop-gateway/core";
+import { HashChainedAuditLog, InMemoryStore } from "@interop-gateway/core";
 import { sendMllpMessage } from "@interop-gateway/protocol-mllp";
 import { HttpIngestServer } from "@interop-gateway/protocol-http";
 import type { PipelineConfig } from "../src/config.js";
-import { runPipeline, type RunningPipeline } from "../src/pipeline.js";
+import { runPipeline, replayDeadLetters, type RunningPipeline } from "../src/pipeline.js";
+import { FileDeadLetterQueue } from "../src/dead-letter.js";
 
 const SAMPLE_ADT_A01 =
   "MSH|^~\\&|SENDING_APP|SENDING_FAC|RECEIVING_APP|RECEIVING_FAC|20260101120000||ADT^A01|MSG00001|P|2.5\r" +
@@ -63,7 +64,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
       destination: { protocol: "file", directory: outboundDir },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
 
     await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
     await waitFor(() => fileExists(join(inboundDir, "processed", "adt.hl7")));
@@ -85,7 +86,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
       destination: { protocol: "file", directory: outboundDir },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
 
     await writeFile(join(inboundDir, "bad.hl7"), "not an hl7v2 message");
     await waitFor(() => fileExists(join(inboundDir, "error", "bad.hl7")));
@@ -103,7 +104,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "http", port: 0, path: "/ingest" },
       destination: { protocol: "file", directory: outboundDir },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
     const { port } = activePipeline.address!;
 
     const response = await fetch(`http://127.0.0.1:${port}/ingest`, {
@@ -128,7 +129,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "http", port: 0 },
       destination: { protocol: "file", directory: outboundDir },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
     const { port } = activePipeline.address!;
 
     const response = await fetch(`http://127.0.0.1:${port}`, { method: "POST", body: "garbage" });
@@ -147,7 +148,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "mllp", port: 0, host: "127.0.0.1" },
       destination: { protocol: "file", directory: outboundDir },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
     const { port } = activePipeline.address!;
 
     const result = await sendMllpMessage(SAMPLE_ADT_A01, { host: "127.0.0.1", port });
@@ -176,7 +177,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
       destination: { protocol: "http", url: `http://127.0.0.1:${destPort}` },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
 
     await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
     await waitFor(() => fileExists(join(inboundDir, "error", "adt.hl7")));
@@ -195,7 +196,7 @@ describe("runPipeline (real transports, no mocking)", () => {
       source: { protocol: "mllp", port: 0, host: "127.0.0.1" },
       destination: { protocol: "file", directory: outboundDir },
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
     const { port } = activePipeline.address!;
 
     const result = await sendMllpMessage("PID|not a real message", { host: "127.0.0.1", port });
@@ -284,11 +285,220 @@ describe("runPipeline (real transports, no mocking)", () => {
       destination: { protocol: "file", directory: outboundDir },
       validateProfile: true,
     };
-    activePipeline = await runPipeline(config);
+    activePipeline = await runPipeline(config, { ephemeral: true });
 
     await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
     await waitFor(() => fileExists(join(inboundDir, "processed", "adt.hl7")));
 
     expect(await readdir(outboundDir)).toHaveLength(1);
+  });
+
+  it("routes: a rule's to list fans out to every destination in it", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const outA = await mkdtemp(join(tmpdir(), "engine-out-a-"));
+    const outB = await mkdtemp(join(tmpdir(), "engine-out-b-"));
+    activeDirs = [inboundDir, outA, outB];
+
+    const config: PipelineConfig = {
+      name: "test-fanout",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      routes: [
+        {
+          to: [
+            { protocol: "file", directory: outA },
+            { protocol: "file", directory: outB },
+          ],
+        },
+      ],
+    };
+    activePipeline = await runPipeline(config, { ephemeral: true });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(() => fileExists(join(inboundDir, "processed", "adt.hl7")));
+
+    expect(await readdir(outA)).toHaveLength(1);
+    expect(await readdir(outB)).toHaveLength(1);
+  });
+
+  it("routes: the first matching rule (by when) wins, later rules are not evaluated", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const patientDir = await mkdtemp(join(tmpdir(), "engine-patient-"));
+    const catchAllDir = await mkdtemp(join(tmpdir(), "engine-catchall-"));
+    activeDirs = [inboundDir, patientDir, catchAllDir];
+
+    const config: PipelineConfig = {
+      name: "test-conditional-routing",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      routes: [
+        {
+          when: { "entry.0.resource.resourceType": "Patient" },
+          to: [{ protocol: "file", directory: patientDir }],
+        },
+        { to: [{ protocol: "file", directory: catchAllDir }] },
+      ],
+    };
+    activePipeline = await runPipeline(config, { ephemeral: true });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(() => fileExists(join(inboundDir, "processed", "adt.hl7")));
+
+    expect(await readdir(patientDir)).toHaveLength(1);
+    expect(await readdir(catchAllDir)).toHaveLength(0);
+  });
+
+  it("routes: a message matching no rule is a delivery failure, routed to error/", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const unmatchedDir = await mkdtemp(join(tmpdir(), "engine-unmatched-"));
+    activeDirs = [inboundDir, unmatchedDir];
+    const auditSink = new HashChainedAuditLog();
+
+    const config: PipelineConfig = {
+      name: "test-no-route-matched",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      routes: [
+        {
+          when: { "entry.0.resource.resourceType": "Observation" },
+          to: [{ protocol: "file", directory: unmatchedDir }],
+        },
+      ],
+    };
+    activePipeline = await runPipeline(config, { auditSink });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(() => fileExists(join(inboundDir, "error", "adt.hl7")));
+
+    expect(await readdir(unmatchedDir)).toHaveLength(0);
+    const errorSidecar = await readFile(join(inboundDir, "error", "adt.hl7.error.txt"), "utf8");
+    expect(errorSidecar).toMatch(/No route matched/);
+    expect(auditSink.list().map((record) => record.entry.what)).toEqual([
+      "translate",
+      "route:unmatched",
+    ]);
+  });
+
+  it("deadLetterQueue: a delivery failure is enqueued with the raw message and failure stage", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    activeDirs = [inboundDir];
+    const deadLetterQueue = new FileDeadLetterQueue(new InMemoryStore());
+
+    const config: PipelineConfig = {
+      name: "test-dlq-deliver",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      // Nothing is listening on this port — every delivery attempt fails.
+      destination: { protocol: "http", url: "https://127.0.0.1:1" },
+    };
+    activePipeline = await runPipeline(config, { deadLetterQueue, ephemeral: true });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(async () => (await deadLetterQueue.list()).length === 1);
+
+    const [entry] = await deadLetterQueue.list();
+    expect(entry!.raw).toBe(SAMPLE_ADT_A01);
+    expect(entry!.stage).toBe("deliver");
+    expect(entry!.attempts).toBe(0);
+  });
+
+  it("deadLetterQueue: an unmatched route is enqueued with stage 'route'", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const unmatchedDir = await mkdtemp(join(tmpdir(), "engine-unmatched-"));
+    activeDirs = [inboundDir, unmatchedDir];
+    const deadLetterQueue = new FileDeadLetterQueue(new InMemoryStore());
+
+    const config: PipelineConfig = {
+      name: "test-dlq-route",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      routes: [
+        {
+          when: { "entry.0.resource.resourceType": "Observation" },
+          to: [{ protocol: "file", directory: unmatchedDir }],
+        },
+      ],
+    };
+    activePipeline = await runPipeline(config, { deadLetterQueue, ephemeral: true });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(async () => (await deadLetterQueue.list()).length === 1);
+
+    expect((await deadLetterQueue.list())[0]!.stage).toBe("route");
+  });
+
+  it("deadLetterQueue: not configured (default) means a failure is reported but never retained", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const outboundDir = await mkdtemp(join(tmpdir(), "engine-out-"));
+    activeDirs = [inboundDir, outboundDir];
+
+    const config: PipelineConfig = {
+      name: "test-no-dlq",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      destination: { protocol: "file", directory: outboundDir },
+    };
+    activePipeline = await runPipeline(config, { ephemeral: true });
+
+    await writeFile(join(inboundDir, "bad.hl7"), "not an hl7v2 message");
+    await waitFor(() => fileExists(join(inboundDir, "error", "bad.hl7")));
+
+    expect(activePipeline.deadLetterQueue).toBeUndefined();
+  });
+
+  it("replayDeadLetters: a message that now succeeds is removed from the queue and delivered", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const outboundDir = await mkdtemp(join(tmpdir(), "engine-out-"));
+    activeDirs = [inboundDir, outboundDir];
+    const deadLetterQueue = new FileDeadLetterQueue(new InMemoryStore());
+
+    // Deliver to a destination directory that doesn't exist yet — file delivery fails,
+    // the message is dead-lettered. Then we create the directory and replay.
+    const missingDir = join(outboundDir, "does-not-exist-yet", "nested");
+    const config: PipelineConfig = {
+      name: "test-replay-success",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      destination: { protocol: "http", url: "https://127.0.0.1:1" },
+    };
+    activePipeline = await runPipeline(config, { deadLetterQueue, ephemeral: true });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(async () => (await deadLetterQueue.list()).length === 1);
+
+    // Replay against a corrected config (file delivery instead of the broken https
+    // destination) to prove replay actually re-runs the full handler, not a no-op.
+    const fixedConfig: PipelineConfig = {
+      ...config,
+      destination: { protocol: "file", directory: missingDir },
+    };
+    const result = await replayDeadLetters(fixedConfig, deadLetterQueue, { ephemeral: true });
+
+    expect(result).toEqual({ replayed: 1, succeeded: 1, failed: 0 });
+    expect(await deadLetterQueue.list()).toHaveLength(0);
+    expect(await readdir(missingDir)).toHaveLength(1);
+  });
+
+  it("replayDeadLetters: a message that fails again stays queued with attempts incremented", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    activeDirs = [inboundDir];
+    const deadLetterQueue = new FileDeadLetterQueue(new InMemoryStore());
+
+    const config: PipelineConfig = {
+      name: "test-replay-still-fails",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      destination: { protocol: "http", url: "https://127.0.0.1:1" },
+    };
+    activePipeline = await runPipeline(config, { deadLetterQueue, ephemeral: true });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(async () => (await deadLetterQueue.list()).length === 1);
+
+    const result = await replayDeadLetters(config, deadLetterQueue, { ephemeral: true });
+
+    expect(result).toEqual({ replayed: 1, succeeded: 0, failed: 1 });
+    const [entry] = await deadLetterQueue.list();
+    expect(entry!.attempts).toBe(1);
   });
 });

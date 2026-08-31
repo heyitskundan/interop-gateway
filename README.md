@@ -12,21 +12,21 @@ and security model as actually built.
 
 ## Packages
 
-| Package                                    | What it does                                                                                                   |
-| ------------------------------------------ | -------------------------------------------------------------------------------------------------------------- |
-| `@interop-gateway/core`                    | Pipeline engine — stage interfaces, correlation IDs, audit hook, secrets-provider interface, scope enforcement |
-| `@interop-gateway/connector-smart-generic` | Vendor-agnostic SMART on FHIR connector (OAuth2, read/write/search/$export)                                    |
-| `@interop-gateway/protocol-mllp`           | MLLP receive + send with ACK/NACK                                                                              |
-| `@interop-gateway/protocol-http`           | HTTP ingest/delivery adapter                                                                                   |
-| `@interop-gateway/protocol-file`           | File/SFTP ingest/delivery adapter                                                                              |
-| `@interop-gateway/format-hl7v2`            | HL7v2 ↔ FHIR, wrapping [`hl7-fhir-translator`](https://github.com/heyitskundan/hl7-fhir-translator)            |
-| `@interop-gateway/format-cda`              | C-CDA ↔ FHIR, wrapping [`cda-fhir-translator`](https://github.com/heyitskundan/cda-fhir-translator)            |
-| `@interop-gateway/validate-us-core`        | US Core conformance profile validation                                                                         |
-| `@interop-gateway/secrets-keychain`        | `SecretsProvider` backed by the OS keychain (dev default)                                                      |
-| `@interop-gateway/secrets-vault`           | `SecretsProvider` backed by HashiCorp Vault                                                                    |
-| `@interop-gateway/secrets-aws`             | `SecretsProvider` backed by AWS Secrets Manager                                                                |
-| `@interop-gateway/engine`                  | Deployable runtime — Docker, YAML pipeline config, CLI                                                         |
-| `@interop-gateway/mcp-server`              | MCP tool surface over the same scope-checked, audit-logged API                                                 |
+| Package                                    | What it does                                                                                                                                                                                |
+| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@interop-gateway/core`                    | Shared primitives — correlation IDs, audit log, encrypted storage, secrets-provider interface, scope enforcement, TLS enforcement                                                           |
+| `@interop-gateway/connector-smart-generic` | Vendor-agnostic SMART on FHIR connector — backend-services (`client_secret_post`, `private_key_jwt`) and interactive `authorization_code`+PKCE auth, read/write/search, Bulk Data `$export` |
+| `@interop-gateway/protocol-mllp`           | MLLP receive + send with ACK/NACK                                                                                                                                                           |
+| `@interop-gateway/protocol-http`           | HTTP ingest/delivery adapter                                                                                                                                                                |
+| `@interop-gateway/protocol-file`           | File/SFTP ingest/delivery adapter                                                                                                                                                           |
+| `@interop-gateway/format-hl7v2`            | HL7v2 ↔ FHIR, wrapping [`hl7-fhir-translator`](https://github.com/heyitskundan/hl7-fhir-translator)                                                                                         |
+| `@interop-gateway/format-cda`              | C-CDA ↔ FHIR, wrapping [`cda-fhir-translator`](https://github.com/heyitskundan/cda-fhir-translator)                                                                                         |
+| `@interop-gateway/validate-us-core`        | US Core conformance profile validation                                                                                                                                                      |
+| `@interop-gateway/secrets-keychain`        | `SecretsProvider` backed by the OS keychain (dev default)                                                                                                                                   |
+| `@interop-gateway/secrets-vault`           | `SecretsProvider` backed by HashiCorp Vault                                                                                                                                                 |
+| `@interop-gateway/secrets-aws`             | `SecretsProvider` backed by AWS Secrets Manager                                                                                                                                             |
+| `@interop-gateway/engine`                  | Deployable runtime — Docker, YAML pipeline config, CLI                                                                                                                                      |
+| `@interop-gateway/mcp-server`              | MCP tool surface over the same scope-checked, audit-logged API                                                                                                                              |
 
 ## PHI handling and compliance — read before you deploy this
 
@@ -36,14 +36,15 @@ risk assessments, signed Business Associate Agreements with every vendor/hospita
 connects to, employee policies, and (for SOC 2) a third-party audit over time. Using this
 library does not by itself make your deployment compliant.
 
-What the library does concretely: enforces TLS everywhere, ships `EncryptedStore`
-(AES-256-GCM) as the primitive for anything a deployment chooses to persist, writes a
-tamper-evident audit entry for every `engine`/`mcp-server` call (in-memory by default —
-pass your own `AuditSink` for durable, encrypted storage), checks SMART scopes before
-every read/write, never logs a PHI value (structural/shape info and FHIR/HL7 paths
-only), and never stores a plaintext secret — see `SECURITY.md` for the full model,
-including what's a real default versus what's a pluggable interface you still have to
-wire up yourself.
+What the library does concretely: enforces TLS everywhere; writes a tamper-evident audit
+entry for every `engine`/`mcp-server` call, persisted to disk by default and refusing to
+persist unencrypted unless you explicitly set `allowUnencryptedPersistence: true` (opt
+into `ephemeral: true` instead for tests/quick demos, where in-memory-only is the point)
+— the same rule applies to a dead-letter queue once you configure one; checks SMART
+scopes before every read/write; never logs a PHI value (structural/shape info and
+FHIR/HL7 paths only); and never stores a plaintext secret — see `SECURITY.md` for the
+full model, including what's a real default versus what's a pluggable interface you
+still have to wire up yourself.
 
 ## Vendor access — this package is plumbing, not a permission broker
 

@@ -35,6 +35,127 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   `validateUsCoreBundle` against it. `createInteropGatewayMcpServer()` takes an optional
   `{ auditSink? }` (same default as `engine`), and `translate`/`validate`/
   `validateUsCore` each write a correlated audit entry per call.
+- **`mcp-server`** — 6 new tools, all wrapping existing `connector-smart-generic`/
+  `protocol-mllp`/`engine` functionality rather than adding new capability:
+  `connect_ehr` (creates a `SmartClient`, no network call), `read_resource`/
+  `write_resource` (scope-checked read/search/create/update/delete against the
+  connected server), `send_message` (real MLLP send via `protocol-mllp`), and
+  `run_pipeline`/`stop_pipeline` (start/stop an `engine` pipeline from a YAML string,
+  in-memory per server instance). Every tool follows the existing pattern: a
+  `correlationId`, `isError: true` + the underlying `GatewayError`'s message on
+  failure instead of throwing, and an audit entry. 9 tools total; see the package
+  README's "Static" vs. "Live" split for the trust-boundary disclosure on the 6 new
+  ones (`connect_ehr`'s auth argument carries the credential itself as a tool call
+  argument, which most MCP clients display/log).
+- **`engine`** — `PipelineConfig.destination` is now optional; a `routes: RouteRule[]`
+  list is the alternative (exactly one of the two must be set). Each rule optionally
+  matches (`when`, dot-path equality against the translated FHIR resource, e.g.
+  `entry.0.resource.resourceType: Patient` since `translate()` always produces a
+  `Bundle`) and fans out to every destination in its `to` list on match — rules tried
+  in order, first match wins, no match is a delivery failure through the same failure
+  channel as any other. `core`'s `Pipeline`/`Stage` classes remain unused by both
+  `engine` and `mcp-server` — a separate, smaller item (see below).
+- **`engine`** — dead-letter queue and persisted audit log, closing the gap the
+  `SECURITY.md` correction below used to describe. `FileDeadLetterQueue` (`core`'s new
+  `Store`-backed) retains a message that fails translation/validation/routing/delivery
+  (raw content, failure stage, error, attempt count) alongside reporting it through the
+  source's own failure channel as before; `interop-gateway-engine replay pipeline.yaml`
+  re-runs everything currently queued. `FileAuditLog` persists the same hash-chained
+  audit trail `HashChainedAuditLog` always wrote, through a `Store` instead of only
+  process memory. `core` gained `FileStore` (`@interop-gateway/core/node` — a separate
+  Node-only entry point so the browser client bundle never pulls in `node:fs`) so both
+  can be wrapped in the existing `EncryptedStore` for encryption at rest. The CLI's
+  `run` command persists both to disk by default (`<name>-audit/`,
+  `<name>-dead-letters/` next to the config file) unless `persistence.audit`/
+  `persistence.deadLetter` in the pipeline YAML say otherwise;
+  `encryptPassphrase` in either turns encryption at rest on.
+  `createInteropGatewayMcpServer()`'s `run_pipeline` tool now passes the server's own
+  `auditSink`/`deadLetterQueue` options through to every pipeline it starts, instead of
+  each one silently keeping a separate in-memory audit log. The audit log's PHI-shaped-
+  value rejection also grew beyond SSN/MRN to email addresses, US-style phone numbers,
+  and bare 9-11 digit identifiers (still a defense-in-depth backstop over a handful of
+  narrow fields, not a general scrubber — see `SECURITY.md`). Fixed along the way:
+  `HashChainedAuditLog`/`FileAuditLog.append()` now clones the entry it's given instead
+  of storing it by reference, so a caller mutating the object it passed in after
+  `append()` returns can no longer silently rewrite tamper-evident history.
+- **`validate-us-core`** — three real fixes to its self-acknowledged gaps: (1) max
+  cardinality is now checked (`FieldRule.max: 1` — a `0..1`/`1..1` element that
+  serialized as a JSON array now fails, on top of the existing presence check); (2)
+  `status`/`intent`/`lifecycleStatus` fields bound with **required** strength to one of
+  FHIR R4's own small fixed enumerations are checked against that enumeration
+  (`Observation.status`, `Immunization.status`, `Procedure.status`, `Encounter.status`,
+  `DiagnosticReport.status`, `CareTeam.status`, `Coverage.status`,
+  `DocumentReference.status`, `Goal.lifecycleStatus`, `ServiceRequest.status`/`intent`,
+  `MedicationRequest.status`/`intent`) — terminology bound to an external code system
+  (LOINC/SNOMED/RxNorm) stays entirely out of scope, since checking that needs the real
+  ValueSet contents this repo doesn't have and won't fabricate; (3) the 15 built-in
+  profiles are no longer a closed hardcoded set — `registerProfile()`/
+  `unregisterProfile()` mutate a registry seeded from the built-ins at module load, so a
+  caller can add a resource type this package has no rule for or override a built-in
+  one, without forking the package. `getRegisteredProfile()`/`listRegisteredProfiles()`/
+  `resetProfiles()` round out the registry API. Still not independently re-verified
+  against fetched US Core StructureDefinition JSON — that caveat stands, see the
+  package's own README.
+- **`connector-smart-generic`** — two real gaps closed: (1) the interactive, patient/
+  clinician-facing SMART App Launch. `buildAuthorizationUrl()` builds the
+  authorization-endpoint redirect with PKCE (`S256`), `exchangeAuthorizationCode()`
+  finishes the exchange once the authorization server redirects back with a `code`,
+  and a new `authorization_code` `AuthConfig` variant lets `SmartClient` use an
+  already-obtained token, refreshing via `grant_type=refresh_token` (through
+  `refreshAccessToken()`) instead of re-running client-credentials — there's no
+  standing credential to re-run it with. `TokenManager` throws `GatewayError`/
+  `REFRESH_TOKEN_UNAVAILABLE` rather than silently failing at the next FHIR request
+  when no refresh token is available. The redirect and login/consent screen remain
+  outside what this (or any server-side) package can automate — that's inherent to the
+  flow, not a remaining gap. (2) Bulk Data `$export` — `SmartClient.startBulkExport()`/
+  `checkBulkExportStatus()`/`pollBulkExportUntilComplete()`/
+  `downloadBulkExportFile()`/`cancelBulkExport()` implement the
+  [Bulk Data Access IG](https://hl7.org/fhir/uv/bulkdata/)'s kick-off/async-status/
+  download flow for system-, patient-, and group-level export, honoring
+  `Retry-After` while polling and the per-job `requiresAccessToken` flag on file
+  downloads; `parseNdjson()` parses the output files. 42 new tests (74 total in this
+  package), all backward compatible — no existing test needed to change.
+- **`core`'s `Pipeline`/`Stage` composable-stage abstraction removed.** It shipped
+  exported and tested but no package ever adopted it — `engine`'s and `mcp-server`'s
+  actual needs (an optional validation stage, fan-out delivery, per-stage audit/
+  dead-letter hooks) don't map cleanly onto a linear envelope-in/envelope-out chain,
+  and forcing a refactor onto it would have meant rewriting working, tested, audited
+  logic for no functional gain. Dead code left in a public API surface invites someone
+  to build against an abstraction nobody uses; removed instead of kept as aspirational.
+- **Persistence inverted to safe-by-default across `engine` and `mcp-server`.**
+  `runPipeline()` (direct call, CLI, or via `mcp-server`'s `run_pipeline`) and
+  `createInteropGatewayMcpServer()` now default to a `FileAuditLog` persisted to disk
+  (`<name>-audit/`, or `./mcp-server-audit` for the MCP server) instead of an in-memory
+  `HashChainedAuditLog()`. Persisting without `persistence.audit.encryptPassphrase` set
+  throws `GatewayError`/`UNENCRYPTED_PERSISTENCE_REFUSED` before anything is written,
+  unless `allowUnencryptedPersistence: true` is explicitly passed (the CLI's
+  `--allow-unencrypted` flag) — a conscious, typed-out acceptance of plaintext-on-disk,
+  not the default outcome of omitting a config line. `ephemeral: true` opts fully back
+  into the old in-memory-only behavior for tests/quick demos. The same
+  encryption-or-explicit-opt-out rule now applies to the dead-letter queue whenever one
+  is configured (its _existence_ stays opt-in for a direct call — only its encryption
+  changed); the CLI's `run` command still always creates one by default. `engine`
+  gained a new `persistence.ts` module (`resolveAuditSink`/`resolveDeadLetterQueue`/
+  `resolveDeadLetterQueueWithDefault`) shared by `pipeline.ts`, `cli.ts`, and
+  `mcp-server`, so the encryption gate lives in exactly one place. 20 new tests across
+  `engine`/`mcp-server` cover the refuse-unencrypted, persist-with-passphrase, and
+  ephemeral-opt-out paths.
+- **`mcp-server` gained 6 tools closing the gap between what the SDK can do and what an
+  AI agent using it through MCP could reach.** `start_smart_launch`/
+  `complete_smart_launch` expose `connector-smart-generic`'s `authorization_code`+PKCE
+  flow (`connect_ehr` alone only ever supported backend-services auth) — two tools, not
+  one extended `connect_ehr`, since an authorization-code exchange needs a
+  redirect/callback step no single synchronous tool call can wait through;
+  `start_smart_launch` builds the authorization URL and holds the PKCE `code_verifier`
+  server-side keyed by `state`, `complete_smart_launch` exchanges the code and opens a
+  connection usable by the existing `read_resource`/`write_resource` tools.
+  `start_bulk_export`/`check_bulk_export_status`/`download_bulk_export_file`/
+  `cancel_bulk_export` expose the connector's Bulk Data `$export` support. Also fixed:
+  `connect_ehr`'s description falsely claimed "there is no interactive/PKCE launch flow
+  here or in the connector package it wraps" — the connector has supported PKCE since
+  the previous release; the line was just never updated. `createInteropGatewayMcpServer()`
+  is now `async` (`Promise<McpServer>`) to resolve the new default persisted audit sink;
+  9 new tests cover the SMART launch round-trip and the full bulk-export lifecycle.
 - Package READMEs (`core`, `engine`, `mcp-server`, and the 10 others) document running
   each CLI/MCP server from a local build, since none of the `@interop-gateway/*`
   packages are published to npm yet — the same caveat is centralized in the root

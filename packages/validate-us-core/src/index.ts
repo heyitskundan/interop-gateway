@@ -1,4 +1,10 @@
-import { checkField, US_CORE_PROFILES } from "./rules.js";
+import {
+  checkCodeBinding,
+  checkField,
+  checkMaxCardinality,
+  US_CORE_PROFILES,
+  type ProfileRule,
+} from "./rules.js";
 
 export { US_CORE_PROFILES, type FieldRule, type ProfileRule } from "./rules.js";
 
@@ -11,6 +17,46 @@ export interface UsCoreValidationResult {
   readonly valid: boolean;
   readonly profile?: string;
   readonly issues: readonly string[];
+}
+
+/** Mutable profile registry, seeded from the built-in `US_CORE_PROFILES` table at
+ * module load. `validateUsCore`/`validateUsCoreBundle` read from this, not the frozen
+ * `US_CORE_PROFILES` export directly, so `registerProfile()` can add a resource type
+ * this package doesn't ship a rule for, or override a built-in one with a stricter or
+ * differently-scoped rule (a custom IG, a state-specific profile, a local Argonaut
+ * variant) — without forking this package. */
+const registry = new Map<string, ProfileRule>(Object.entries(US_CORE_PROFILES));
+
+/** Registers (or overrides) the rule used for `resourceType`. Takes effect on the very
+ * next `validateUsCore`/`validateUsCoreBundle` call — there's no rebuild/reload step. */
+export function registerProfile(resourceType: string, rule: ProfileRule): void {
+  registry.set(resourceType, rule);
+}
+
+/** Removes a resourceType's rule — `validateUsCore` reports it as `supported: false`
+ * afterward, same as a resourceType this package never had a rule for. */
+export function unregisterProfile(resourceType: string): void {
+  registry.delete(resourceType);
+}
+
+export function getRegisteredProfile(resourceType: string): ProfileRule | undefined {
+  return registry.get(resourceType);
+}
+
+/** All currently-registered resource types, built-in and custom alike. */
+export function listRegisteredProfiles(): readonly string[] {
+  return [...registry.keys()];
+}
+
+/** Discards every custom `registerProfile()` call and any `unregisterProfile()`
+ * removal, restoring the registry to exactly the built-in `US_CORE_PROFILES` table.
+ * Mainly for tests that register a throwaway profile and don't want it leaking into
+ * the next test. */
+export function resetProfiles(): void {
+  registry.clear();
+  for (const [resourceType, rule] of Object.entries(US_CORE_PROFILES)) {
+    registry.set(resourceType, rule);
+  }
 }
 
 /** Checks `resource` against this package's required-element rules for its
@@ -37,15 +83,29 @@ export function validateUsCore(resource: unknown): UsCoreValidationResult {
     };
   }
 
-  const rule = US_CORE_PROFILES[resourceType];
+  const rule = getRegisteredProfile(resourceType);
   if (!rule) {
     return { resourceType, supported: false, valid: true, issues: [] };
   }
 
   const record = resource as Record<string, unknown>;
-  const issues = rule.required
-    .filter((field) => !checkField(record, field))
-    .map((field) => `Missing required element: ${field.description}`);
+  const issues: string[] = [];
+  for (const field of rule.required) {
+    if (!checkField(record, field)) {
+      issues.push(`Missing required element: ${field.description}`);
+      continue;
+    }
+    if (checkMaxCardinality(record, field) === false) {
+      issues.push(
+        `Max cardinality violation: ${field.description} must not be a JSON array (max 1)`,
+      );
+    }
+    if (checkCodeBinding(record, field) === false) {
+      issues.push(
+        `Invalid code: ${field.description} must be one of [${field.codeValues!.join(", ")}]`,
+      );
+    }
+  }
 
   return {
     resourceType,

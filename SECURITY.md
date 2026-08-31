@@ -35,6 +35,16 @@ these rules everywhere:
 - **No PHI in logs, errors, or stack traces.** Logging is structural/shape-only (e.g.
   `"Read Patient/1234 (12 fields)"`, `"Validation failed: Patient.birthDate missing"`) —
   never a PHI value. Error paths use the FHIR/HL7 path, never the value at that path.
+  The audit log (`HashChainedAuditLog`/`FileAuditLog`) additionally rejects any entry
+  whose `correlationId`/`who`/`what`/`resourceType` matches an SSN, MRN-labeled
+  identifier, email address, US-style phone number, or bare 9-11 digit identifier
+  shape, on top of relying on entries structurally carrying only a handful of narrow
+  fields, never full message content — this is a defense-in-depth backstop, not a
+  general PHI scrubber; it cannot catch a name, address, or diagnosis embedded in a
+  free-text `what` string, so the actual guarantee is still "don't put PHI into an
+  audit entry's fields," same as before. The dead-letter queue (see below) is the one
+  place that deliberately holds full raw message content, by design — it isn't
+  redaction-checked, it's meant for encryption-at-rest instead.
 - **No plaintext secrets, ever.** Client secrets, private keys, and refresh tokens are
   never stored, logged, or included in error output by `packages/core` or any connector —
   they're handled exclusively through the pluggable `SecretsProvider` interface (OS
@@ -42,20 +52,47 @@ these rules everywhere:
 - **Encryption in transit, always.** TLS is enforced (and downgrades rejected) on every
   outbound connection — the SMART connector, `sendHttpMessage`, and every `secrets-*`
   provider's network calls all route through the same `enforceTls()` check.
-- **Encryption at rest is a primitive the package ships, not a default it enforces for
-  you.** `core` exports `EncryptedStore` (AES-256-GCM over any key/value `Store`) for
-  anything a deployment chooses to persist. Concretely today: `engine` and `mcp-server`
-  write per-message/per-call audit entries (tamper-evident, hash-chained, PHI-shaped
-  values rejected — see `HashChainedAuditLog`) to an injectable `AuditSink`, which
-  defaults to an **in-memory** instance that is lost on restart and not encrypted at
-  rest, because there's nothing on disk to encrypt. If your deployment needs a durable
-  audit trail, implement `AuditSink` (one method, `append()`) backed by `EncryptedStore`
-  or your own encrypted store, and pass it to `runPipeline()`/
-  `createInteropGatewayMcpServer()`. **There is no built-in dead-letter queue.** The
-  closest thing that exists is `protocol-file`'s `FileIngestWatcher`, which moves a
-  failed message to a plain (unencrypted by the package) `error/` subdirectory with an
-  error sidecar — encrypting that at rest is the deploying organization's
-  responsibility (e.g. an encrypted volume), same as any other file the OS writes.
+- **Persisted by default, encrypted by default — the unsafe path has to be typed out
+  explicitly, not the safe one.** `runPipeline()` (called directly, from the CLI, or via
+  `mcp-server`'s `run_pipeline` tool) and `createInteropGatewayMcpServer()` both default
+  to a `FileAuditLog` persisted to disk (`<name>-audit/` next to the pipeline config, or
+  `./mcp-server-audit` for the MCP server) — not an ephemeral in-memory log. Persisting
+  without `persistence.audit.encryptPassphrase` set throws
+  `GatewayError`/`UNENCRYPTED_PERSISTENCE_REFUSED` immediately, before anything is
+  written, unless the caller explicitly passes `allowUnencryptedPersistence: true` (the
+  CLI's equivalent is the `--allow-unencrypted` flag) — a conscious, typed-out decision
+  to accept plaintext-on-disk, not something that happens by omitting a config line. Set
+  `ephemeral: true` instead for tests and quick demos where an in-memory-only log is
+  genuinely the point; real usage shouldn't set it, since the audit trail is lost on
+  every restart. `core` exports `EncryptedStore` (AES-256-GCM over any key/value
+  `Store`) and a Node-only `FileStore` (`@interop-gateway/core/node`) as the primitives
+  underneath this — `persistence.audit.encryptPassphrase` derives the key via PBKDF2
+  (the pipeline/server name as salt) and wraps `FileStore` in `EncryptedStore`
+  automatically; nothing else needs to touch either primitive directly.
+  `mcp-server`'s `run_pipeline` tool passes the server's own resolved `auditSink`
+  through to every pipeline it starts (see `CreateInteropGatewayMcpServerOptions`)
+  rather than each pipeline silently keeping its own separate log.
+- **Dead-letter queue — opt-in to have one, but the same encryption rule once you do.**
+  `engine` ships `FileDeadLetterQueue` (`Store`-backed, same `EncryptedStore` wrapping as
+  the audit log above). Its _existence_ stays opt-in for a direct `runPipeline()`/
+  `createInteropGatewayMcpServer()` call — set `persistence.deadLetter` (or pass one in
+  explicitly) if you want one — but the CLI's `run` command always creates one by
+  default (`<name>-dead-letters/`), and whenever a dead-letter queue is configured
+  anywhere, persisting it unencrypted throws the same
+  `UNENCRYPTED_PERSISTENCE_REFUSED` error the audit log does, unless
+  `allowUnencryptedPersistence: true` is set. This matters more here than for the audit
+  log: **the dead-letter queue retains full raw (unredacted) source message content by
+  design** — replay needs the actual message — so it is the one place in this system
+  that isn't PHI-redaction-checked at all (see the audit log's redaction note above);
+  encryption at rest is its only real protection, which is exactly why the same
+  refuse-unless-encrypted-or-explicit-opt-out rule applies to it. A message that fails
+  translation, US Core validation, routing, or delivery is retained here (raw message,
+  failure stage, error, attempt count) in addition to being reported through the
+  source's own failure channel (an `AE` ACK, a 422, the `error/` subdirectory) — nothing
+  is silently lost. `interop-gateway-engine replay pipeline.yaml` re-runs every
+  currently-queued message through the same translate/validate/route/deliver handler a
+  live pipeline uses; a message that succeeds is removed, one that fails again stays
+  queued with `attempts` incremented.
 - **Scope enforcement, not just trust-the-token.** Every `read()`/`write()` call is
   checked against the current token's granted SMART scopes before any network call is
   made.

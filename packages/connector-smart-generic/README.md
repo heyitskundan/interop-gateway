@@ -1,8 +1,9 @@
 # @interop-gateway/connector-smart-generic
 
 Vendor-agnostic SMART on FHIR connector for [interop-gateway](https://github.com/heyitskundan/interop-gateway):
-OAuth2 client-credentials token exchange (`client_secret_post` and the backend-services
-`private_key_jwt` flow), plus scope-checked `read()`/`search()` against a FHIR R4 server.
+backend-services token exchange (`client_secret_post`, `private_key_jwt`) and the
+interactive, patient/clinician-facing `authorization_code` flow with PKCE, scope-checked
+`read()`/`search()`/`write()` against a FHIR R4 server, and Bulk Data `$export`.
 
 ## Bring your own credentials
 
@@ -65,6 +66,98 @@ const options: SmartClientOptions = {
 const client = new SmartClient(options);
 ```
 
+## Use — authorization_code (SMART App Launch, patient/clinician-facing)
+
+The interactive flow, for a patient portal or a clinician-facing embedded app. This
+package cannot perform the redirect and login/consent screen itself — that's a browser
+step, inherent to the flow, not something any server-side library can automate — but
+provides every other piece: building the authorization URL with PKCE, exchanging the
+returned `code`, and refreshing afterward.
+
+```ts
+import {
+  buildAuthorizationUrl,
+  exchangeAuthorizationCode,
+  SmartClient,
+} from "@interop-gateway/connector-smart-generic";
+
+// 1. Start the launch — redirect the user's browser to `url`. Persist `codeVerifier`
+//    (session storage, a signed cookie) — you need it back in step 2.
+const { url, codeVerifier, state } = await buildAuthorizationUrl({
+  authorizeUrl: "https://your-sandbox.example.org/auth/authorize",
+  clientId: "your-client-id",
+  redirectUri: "https://your-app.example.org/callback",
+  scope: "launch/patient patient/Patient.read offline_access",
+  aud: "https://your-sandbox.example.org/fhir", // the FHIR server this launch is for
+  launch: launchParamFromEhrRedirect, // omit for a standalone (non-EHR) launch
+});
+// redirect(url); persistSession({ codeVerifier, state });
+
+// 2. The authorization server redirects back to redirectUri with `?code=...&state=...`.
+//    Verify `state` matches what you persisted, then exchange the code:
+const token = await exchangeAuthorizationCode({
+  tokenUrl: "https://your-sandbox.example.org/auth/token",
+  code: codeFromRedirectQueryParam,
+  redirectUri: "https://your-app.example.org/callback",
+  clientId: "your-client-id",
+  codeVerifier, // from step 1's session
+});
+// token.patient / token.encounter carry the launch context, when the server sends it.
+
+// 3. Use it — SmartClient refreshes via token.refreshToken automatically once it's
+//    within 30 seconds of expiry, no further redirect needed until the refresh token
+//    itself is revoked/expires.
+const client = new SmartClient({
+  baseUrl: "https://your-sandbox.example.org/fhir",
+  auth: {
+    method: "authorization_code",
+    tokenUrl: "https://your-sandbox.example.org/auth/token",
+    clientId: "your-client-id",
+    redirectUri: "https://your-app.example.org/callback",
+    initialToken: token,
+  },
+  scopes: [{ resourceType: "Patient", operations: ["read"] }],
+});
+const patient = await client.read("Patient", token.patient!);
+```
+
+If the refresh token is ever rejected (revoked, expired) or was never granted
+(`offline_access` wasn't in `scope`), the next call throws `GatewayError`/
+`REFRESH_TOKEN_UNAVAILABLE` instead of silently failing at the FHIR request — the user
+needs to go through step 1 again.
+
+## Bulk Data ($export)
+
+System-, patient-, and group-level export per the
+[FHIR Bulk Data Access IG](https://hl7.org/fhir/uv/bulkdata/) — kick-off, async status
+polling, and NDJSON output download, all on `SmartClient`:
+
+```ts
+const job = await client.startBulkExport({
+  level: "group",
+  groupId: "cohort-1",
+  types: ["Patient", "Observation"],
+  since: "2026-01-01T00:00:00Z",
+});
+
+// Poll until done — waits the server's Retry-After between attempts when given.
+const completed = await client.pollBulkExportUntilComplete(job);
+// Or poll it yourself: `await client.checkBulkExportStatus(job)` returns
+// { status: "in-progress", progress?, retryAfterSeconds? } | { status: "completed", output, ... } | { status: "error", issues }
+
+for (const file of completed.output) {
+  const ndjsonText = await client.downloadBulkExportFile(file, {
+    requiresAccessToken: completed.requiresAccessToken,
+  });
+  const resources = parseNdjson(ndjsonText); // one parsed resource per line
+}
+
+await client.cancelBulkExport(job); // DELETE the job if you need to stop it early
+```
+
+`buildExportUrl()`/`parseCompletedExportBody()`/`parseNdjson()` are exported standalone
+too, for building the request/parsing the response yourself outside `SmartClient`.
+
 ## Write support
 
 ```js
@@ -106,18 +199,26 @@ seconds of expiry.
 
 ## Lower-level exports
 
-`SmartClient` is built from three pieces also exported directly, for a consumer
-building a custom connector variant instead of using `SmartClient` as-is:
+`SmartClient` is built from pieces also exported directly, for a consumer building a
+custom connector variant instead of using `SmartClient` as-is:
 
-- `fetchAccessToken(auth)` — runs the token exchange (`client_secret_post` or
-  `private_key_jwt`) standalone, without a `SmartClient` instance.
-- `TokenManager` — the caching/auto-refresh wrapper around `fetchAccessToken` that
-  `SmartClient` uses internally; reusable if you need token caching without the rest of
-  `SmartClient`'s scope-checked request surface.
+- `fetchAccessToken(auth)` — runs the backend-services token exchange
+  (`client_secret_post` or `private_key_jwt`) standalone, without a `SmartClient`
+  instance.
+- `generatePkce()` / `buildAuthorizationUrl()` / `exchangeAuthorizationCode()` /
+  `refreshAccessToken()` — the pieces of the interactive `authorization_code` flow, see
+  "Use — authorization_code" above.
+- `TokenManager` — the caching/auto-refresh wrapper `SmartClient` uses internally;
+  reusable if you need token caching without the rest of `SmartClient`'s scope-checked
+  request surface. Handles both refresh strategies (re-run client-credentials for
+  backend-services auth, `grant_type=refresh_token` for `authorization_code`).
 - `classifyWriteFailureStatus(status)` — the same HTTP-status-to-`WriteFailureCode`
   mapping (`CONFLICT` for 409/412, `VALIDATION_FAILED` for 422, `REQUEST_FAILED`
   otherwise) `create`/`update`/`delete` use internally, exposed for a caller writing
   their own write path against a FHIR server.
+- `buildExportUrl()` / `parseCompletedExportBody()` / `parseNdjson()` — the pieces
+  `startBulkExport()`/`checkBulkExportStatus()` use internally, see "Bulk Data
+  ($export)" above.
 
 ## Testing against a sandbox
 

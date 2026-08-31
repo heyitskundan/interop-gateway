@@ -43,8 +43,8 @@ export function Packages() {
       <Pkg
         id="core-pkg"
         name="core"
-        summary="Shared interfaces and primitives — most now consumed by engine and mcp-server."
-        detail="TLS enforcement (enforceTls), EncryptedStore (AES-256-GCM), ScopeSet enforcement, the SecretsProvider interface, structural HL7v2/CDA validation, the InteropGateway translate()/validate() API (both directions), createEnvelope, and HashChainedAuditLog are all in real use by other packages today. Pipeline/Stage — the composable stage abstraction — is still exported and tested only in core's own suite; engine and mcp-server call createEnvelope/AuditSink.append directly rather than composing a Pipeline out of Stages. See docs/architecture.md's Identification section."
+        summary="Shared interfaces and primitives — every export in real use by engine and/or mcp-server."
+        detail="TLS enforcement (enforceTls), EncryptedStore (AES-256-GCM), ScopeSet enforcement, the SecretsProvider interface, structural HL7v2/CDA validation, the InteropGateway translate()/validate() API (both directions), createEnvelope, and HashChainedAuditLog/FileAuditLog are all in real use by other packages today. FileStore — the on-disk Store implementation — is exported from a separate @interop-gateway/core/node entry point, so a browser bundle importing the main export never pulls in node:fs. The Pipeline/Stage composable-stage abstraction was removed — it shipped exported and tested but was never adopted by engine or mcp-server, whose actual needs (an optional validation stage, fan-out delivery, per-stage audit/dead-letter hooks) don't map cleanly onto a linear envelope-in/envelope-out chain."
       />
 
       <h2 id="formats" className="mt-8">
@@ -92,7 +92,7 @@ export function Packages() {
         id="connector-smart-generic"
         name="connector-smart-generic"
         summary="Vendor-agnostic SMART on FHIR connector."
-        detail="OAuth2 client-credentials or backend-services (private_key_jwt) auth, token caching with automatic refresh, scope-checked read/search/write/writeBatch against a FHIR R4 server. Tested against the live SMART Health IT reference sandbox."
+        detail="Backend-services (client_secret_post, private_key_jwt) and interactive authorization_code+PKCE auth (the patient/clinician-facing SMART App Launch — this package builds the authorization URL and exchanges the code, the actual browser redirect/consent is inherently the caller's), token caching with automatic refresh (client-credentials re-run for backend-services, grant_type=refresh_token for authorization_code), scope-checked read/search/write/writeBatch against a FHIR R4 server, and Bulk Data $export (system/patient/group-level, async status polling, NDJSON download). Tested against the live SMART Health IT reference sandbox."
       />
 
       <h2 id="secrets" className="mt-8">
@@ -123,8 +123,8 @@ export function Packages() {
       <Pkg
         id="validate-us-core"
         name="validate-us-core"
-        summary="Required-element structural checks for 15 US Core profiles."
-        detail="Covers the resource types the two translators can actually produce. Documented explicitly as this package's own reading of each profile's Must Support elements — not independently re-verified against fetched StructureDefinition JSON — with terminology binding entirely out of scope. Wired into engine as the opt-in validateProfile: true pipeline config flag, and into mcp-server as its own validateUsCore tool; call it directly yourself for any other integration."
+        summary="Required-element, max-cardinality, and fixed-code-binding checks for 15 built-in US Core profiles — pluggable for more."
+        detail="Covers the resource types the two translators can actually produce, plus whatever a caller registers via registerProfile()/unregisterProfile() — the rule table isn't a closed hardcoded set. Three check layers per resource: required-element presence, max-cardinality shape (a 0..1/1..1 element must not serialize as a JSON array), and fixed-code-value binding for status/intent/lifecycleStatus fields bound with required strength to one of FHIR R4's own small enumerations. Documented explicitly as this package's own reading of each profile's Must Support elements — not independently re-verified against fetched StructureDefinition JSON — with terminology bound to an external code system (LOINC/SNOMED/RxNorm) entirely out of scope, since verifying that needs the real ValueSet contents this repo doesn't have. Wired into engine as the opt-in validateProfile: true pipeline config flag, and into mcp-server as its own validateUsCore tool; call it directly yourself for any other integration."
       />
 
       <h2 id="engine" className="mt-8">
@@ -134,7 +134,7 @@ export function Packages() {
         id="engine-pkg"
         name="engine"
         summary="YAML-configured pipeline runtime, with a CLI and a Dockerfile."
-        detail="Wires a protocol source (mllp/http/file), a format (hl7v2/cda), and a destination (http/file) together from one config file. A translation or delivery failure for one message reports through the source's own failure channel — an AE ACK, a 422, the error/ subdirectory — prefixed with that message's correlation ID, rather than stopping the pipeline. Every message gets a correlationId (core's createEnvelope) and an audit entry (an injectable AuditSink, default HashChainedAuditLog) at each stage. validateProfile: true in PipelineConfig runs US Core validation before delivery, using the same failure channel."
+        detail="Wires one protocol source (mllp/http/file) and a format (hl7v2/cda) to either a single unconditional destination or a routes list — rules matched in order against the translated resource, first match delivers to every destination in that rule (fan-out), no match is a delivery failure. A translation, validation, routing, or delivery failure for one message reports through the source's own failure channel — an AE ACK, a 422, the error/ subdirectory — prefixed with that message's correlation ID, and (if configured) is also retained in a dead-letter queue for later replay, rather than stopping the pipeline. Every message gets a correlationId (core's createEnvelope) and an audit entry at each stage. The CLI's run command persists both the audit log and the dead-letter queue to disk by default (<name>-audit/, <name>-dead-letters/ next to the config file, optionally encrypted via a persistence.*.encryptPassphrase); interop-gateway-engine replay pipeline.yaml re-runs everything currently queued. runPipeline() called directly still defaults to an in-memory audit log and no dead-letter queue. validateProfile: true in PipelineConfig runs US Core validation before delivery, using the same failure channel."
       />
 
       <h2 id="mcp-server" className="mt-8">
@@ -143,8 +143,8 @@ export function Packages() {
       <Pkg
         id="mcp-server-pkg"
         name="mcp-server"
-        summary="MCP tool surface (translate, validate, validateUsCore) over InteropGateway."
-        detail="Lets an MCP client — an AI assistant, an agent framework — translate HL7v2/C-CDA into FHIR, check structural well-formedness, or check US Core conformance, without that client needing to know anything about either format. Every call gets a correlationId and an audit entry, same mechanism as engine (an injectable AuditSink, default HashChainedAuditLog). See the MCP tab for the full setup steps (Claude Code, Claude Desktop, and generic stdio clients)."
+        summary="MCP tool surface: translate/validate, live FHIR read/write, MLLP send, and pipeline control."
+        detail="15 tools: translate/validate/validateUsCore never leave the process; connect_ehr (backend-services) and start_smart_launch/complete_smart_launch (interactive authorization_code+PKCE) open a live SmartClient connection for read_resource/write_resource/start_bulk_export/check_bulk_export_status/download_bulk_export_file/cancel_bulk_export to use, send_message sends real MLLP, and run_pipeline/stop_pipeline start and stop an engine pipeline — a different trust boundary, disclosed per-tool. Every call gets a correlationId and an audit entry, same mechanism as engine — persisted and encrypted by default (FileAuditLog, refuses unencrypted persistence without an explicit opt-out), not the in-memory default this used to have. run_pipeline passes this server's own resolved auditSink/deadLetterQueue through to every pipeline it starts, rather than each pipeline keeping a separate log. See the MCP tab for the full tool list and setup steps (Claude Code, Claude Desktop, and generic stdio clients)."
       />
 
       <h2 id="architecture" className="mt-8">
@@ -169,19 +169,19 @@ export function Packages() {
       </ul>
       <p style={muted}>
         <code>engine</code> is the piece that actually wires the first two axes together from a
-        config file for a deployable service; <code>mcp-server</code> exposes the translation and
-        validation pieces to an AI client (not the connector/protocol/secrets pieces — an MCP tool
-        call carries no live connection or credential); a custom Node script can compose any of
-        these directly, same as the demo above does.
+        config file for a deployable service; <code>mcp-server</code> exposes all three —
+        translation/validation, a live <code>SmartClient</code> connection, and MLLP send/pipeline
+        control — as tool calls for an AI client (secrets providers aren't exposed directly —{" "}
+        <code>connect_ehr</code>'s auth argument carries the credential itself, not a{" "}
+        <code>SecretsProvider</code> reference); a custom Node script can compose any of these
+        directly, same as the demo above does.
       </p>
       <p style={muted}>
         Two things that used to sit disconnected from this picture are wired in now:{" "}
         <code>validate-us-core</code> profile validation (opt-in in <code>engine</code> via{" "}
         <code>validateProfile: true</code>, a standalone tool in <code>mcp-server</code>) and
         per-message identification/audit logging (<code>core</code>'s <code>createEnvelope</code>/
-        <code>HashChainedAuditLog</code>, called by both). <code>core</code>'s <code>Pipeline</code>
-        /<code>Stage</code> composable-stage abstraction is the one piece still unused outside its
-        own test suite — see <code>docs/architecture.md</code> in the repo.
+        <code>HashChainedAuditLog</code>/<code>FileAuditLog</code>, called by both).
       </p>
     </div>
   );

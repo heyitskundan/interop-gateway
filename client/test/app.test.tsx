@@ -138,7 +138,7 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: "Changelog" })).toBeInTheDocument();
   });
 
-  it("shows both install paths and all three tools on the MCP page", async () => {
+  it("shows both install paths and all nine tools on the MCP page", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("radio", { name: "Docs" }));
@@ -149,6 +149,12 @@ describe("App", () => {
     expect(content).toContain("npm run build -w packages/mcp-server");
     expect(content).toContain("translate");
     expect(content).toContain("validateUsCore");
+    expect(content).toContain("connect_ehr");
+    expect(content).toContain("read_resource");
+    expect(content).toContain("write_resource");
+    expect(content).toContain("send_message");
+    expect(content).toContain("run_pipeline");
+    expect(content).toContain("stop_pipeline");
   });
 
   it("shows the core primitives and connector internals on the Advanced page", async () => {

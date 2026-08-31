@@ -1,7 +1,7 @@
 {
   "name": "@interop-gateway/mcp-server",
   "version": "1.0.0",
-  "description": "MCP tool surface over interop-gateway's translate/validate API.",
+  "description": "MCP tool surface over interop-gateway's translate/validate, SMART on FHIR connector, MLLP send, and pipeline runtime.",
   "keywords": [
     "mcp",
     "model-context-protocol",
@@ -57,9 +57,12 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
+    "@interop-gateway/connector-smart-generic": "1.0.0",
     "@interop-gateway/core": "1.0.0",
+    "@interop-gateway/engine": "1.0.0",
     "@interop-gateway/format-cda": "1.0.0",
     "@interop-gateway/format-hl7v2": "1.0.0",
+    "@interop-gateway/protocol-mllp": "1.0.0",
     "@interop-gateway/validate-us-core": "1.0.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^4.0.0"

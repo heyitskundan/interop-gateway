@@ -34,7 +34,7 @@ envelope.source;        // "mllp" — whatever label you passed
 envelope.payload;       // rawMessage
 
 // Swap the payload while keeping the same correlationId/receivedAt/source —
-// this is how a Stage thread the same envelope through translate -> deliver.
+// this is how engine's handler threads one envelope through translate -> deliver.
 const translated: Envelope<unknown> = withPayload(envelope, fhirBundle);`}
       />
       <p style={muted}>
@@ -54,56 +54,48 @@ const translated: Envelope<unknown> = withPayload(envelope, fhirBundle);`}
         below for where it ends up.
       </p>
 
-      <h2 id="pipeline" className="mt-8">
-        Composable pipelines
-      </h2>
-      <p style={muted}>
-        <code>Pipeline</code>/<code>Stage</code> are the composable abstraction for chaining
-        envelope-in, envelope-out steps.{" "}
-        <strong>Not currently used by any of the 13 packages</strong> — <code>engine</code>'s
-        pipeline is hand-rolled sequential logic that predates this, not built out of{" "}
-        <code>Stage</code>s. Exported and tested in <code>core</code>'s own suite; genuinely usable
-        today if you want the composition pattern for your own pipeline.
-      </p>
-      <CodeBlock
-        lang="ts"
-        code={`import { Pipeline, createEnvelope, type Stage } from "@interop-gateway/core";
-
-const translateStage: Stage<string, unknown> = {
-  name: "translate",
-  async run(envelope) {
-    return { ...envelope, payload: gateway.translate(envelope.payload, { from: "hl7v2", to: "fhir" }) };
-  },
-};
-
-const pipeline = new Pipeline([translateStage /* , deliverStage, ... */]);
-const result = await pipeline.run(createEnvelope(rawMessage, "custom-source"));`}
-      />
-
       <h2 id="storage" className="mt-8">
         Encrypted storage
       </h2>
       <p style={muted}>
         <code>EncryptedStore</code> wraps any key/value <code>Store</code> (AES-256-GCM via Web
         Crypto) — the primitive to reach for if you're persisting anything yourself (a custom{" "}
-        <code>AuditSink</code>, a cache). Not applied automatically to anything — see{" "}
-        <code>SECURITY.md</code> for exactly what is and isn't encrypted by default today.
+        <code>AuditSink</code>, a cache). <code>engine</code>'s CLI wraps its own default on-disk
+        audit log and dead-letter queue in this when a <code>persistence.*.encryptPassphrase</code>{" "}
+        is set in a pipeline config — see the{" "}
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            document
+              .getElementById("audit")
+              ?.scrollIntoView({ behavior: "smooth", block: "start" });
+          }}
+        >
+          audit log
+        </a>{" "}
+        section below. Encryption itself is still opt-in (no passphrase, no encryption) — see{" "}
+        <code>SECURITY.md</code> for the exact default.
       </p>
       <CodeBlock
         lang="ts"
         code={`import { EncryptedStore, InMemoryStore, deriveKey } from "@interop-gateway/core";
+import { FileStore } from "@interop-gateway/core/node"; // Node-only — browser bundles never pull this in
 
 const key = await deriveKey(passphrase, salt); // PBKDF2, 100k iterations, SHA-256
-const store = new EncryptedStore(new InMemoryStore(), key); // swap in your own Store backend
+const store = new EncryptedStore(new FileStore("/var/interop-gateway/tokens"), key); // or InMemoryStore for tests
 
 await store.set("token", new TextEncoder().encode(accessToken));
 const raw = await store.get("token"); // Uint8Array | undefined, decrypted on read`}
       />
       <p style={muted}>
-        <code>InMemoryStore</code> is the reference <code>Store</code> implementation (used by
-        tests, and by anything that hasn't wired a real backend yet) — implement <code>Store</code>
-        's three methods (<code>get</code>/<code>set</code>/<code>delete</code>) against a real
-        backend (Redis, a database, disk) to persist for real.
+        <code>InMemoryStore</code> is the in-memory <code>Store</code> implementation (used by
+        tests, and the default for anything that hasn't wired a real backend).{" "}
+        <code>FileStore</code> (<code>@interop-gateway/core/node</code>) is the on-disk one — one
+        file per key under a directory, key names base64url-encoded so no key can escape it — which
+        <code>engine</code>'s <code>FileAuditLog</code>/<code>FileDeadLetterQueue</code> use by
+        default. Implement <code>Store</code>'s three methods (<code>get</code>/<code>set</code>/
+        <code>delete</code>) against Redis or a database to persist somewhere else instead.
       </p>
 
       <h2 id="scope" className="mt-8">
@@ -146,18 +138,30 @@ enforceTls("http://ehr.example.org/fhir");  // throws TlsError immediately, no r
         Tamper-evident audit log
       </h2>
       <p style={muted}>
-        <code>HashChainedAuditLog</code> is the default <code>AuditSink</code> for{" "}
-        <code>engine</code> and <code>mcp-server</code> — append-only, each entry's hash covers the
-        previous entry's, <code>verify()</code> recomputes the chain to detect tampering. Refuses to
-        accept an entry whose serialized form matches an SSN- or MRN-shaped pattern. In-memory by
-        default — implement <code>AuditSink</code> (one method, <code>append()</code>) backed by{" "}
-        <code>EncryptedStore</code> above for durable, encrypted storage.
+        <code>HashChainedAuditLog</code> is the default <code>AuditSink</code> passed to{" "}
+        <code>runPipeline()</code>/<code>createInteropGatewayMcpServer()</code> when called directly
+        — append-only, in-memory, each entry's hash covers the previous entry's,{" "}
+        <code>verify()</code> recomputes the chain to detect tampering. Refuses to accept an entry
+        whose <code>correlationId</code>/<code>who</code>/<code>what</code>/
+        <code>resourceType</code> matches an SSN, MRN-labeled identifier, email address, phone
+        number, or bare 9-11 digit identifier shape — a backstop on top of those fields never
+        carrying full message content, not a general PHI scrubber. <code>append()</code> clones the
+        entry before storing it, so mutating the object you passed in afterward can't rewrite stored
+        history.
+      </p>
+      <p style={muted}>
+        <code>FileAuditLog</code> is the same log, persisted through a <code>Store</code> instead —{" "}
+        <code>engine</code>'s CLI uses this by default (see the Packages page's <code>engine</code>{" "}
+        entry). Wrap the backing <code>Store</code> in <code>EncryptedStore</code> above for
+        encryption at rest.
       </p>
       <CodeBlock
         lang="ts"
-        code={`import { HashChainedAuditLog, type AuditEntry } from "@interop-gateway/core";
+        code={`import { HashChainedAuditLog, FileAuditLog, type AuditEntry } from "@interop-gateway/core";
+import { FileStore } from "@interop-gateway/core/node";
 
-const auditLog = new HashChainedAuditLog();
+const inMemory = new HashChainedAuditLog();
+const persisted = new FileAuditLog(new FileStore("/var/interop-gateway/audit")); // survives a restart
 
 const entry: AuditEntry = {
   correlationId: "…",
@@ -166,10 +170,38 @@ const entry: AuditEntry = {
   when: new Date().toISOString(),
   resourceType: "Bundle", // never the resource content itself
 };
-await auditLog.append(entry);
+await persisted.append(entry);
 
-auditLog.list();          // ReadonlyArray<{ entry, hash }>
-await auditLog.verify();  // true — false if any entry/hash was tampered with`}
+await persisted.list();          // Promise<ReadonlyArray<{ entry, hash }>> — async, unlike HashChainedAuditLog.list()
+await persisted.verify();        // true — false if any entry/hash was tampered with, including between restarts`}
+      />
+
+      <h2 id="dead-letter" className="mt-8">
+        Dead-letter queue and replay
+      </h2>
+      <p style={muted}>
+        <code>DeadLetterQueue</code>/<code>FileDeadLetterQueue</code> live in{" "}
+        <code>@interop-gateway/engine</code>, not <code>core</code> — a message that fails
+        translation, US Core validation, routing, or delivery is retained (raw content, which stage
+        failed, the error, an attempt count) in addition to being reported through the source's own
+        failure channel as before. <code>engine</code>'s CLI wires one in by default;{" "}
+        <code>runPipeline()</code> called directly leaves it <code>undefined</code> (nothing
+        retained) unless you pass one in. This queue retains raw message content — unlike the audit
+        log above, it is <strong>not</strong> PHI-redaction-checked; wrap its backing{" "}
+        <code>Store</code> in <code>EncryptedStore</code> for at-rest protection instead.
+      </p>
+      <CodeBlock
+        lang="ts"
+        code={`import { runPipeline, replayDeadLetters, FileDeadLetterQueue, loadPipelineConfig } from "@interop-gateway/engine";
+import { FileStore } from "@interop-gateway/core/node";
+
+const deadLetterQueue = new FileDeadLetterQueue(new FileStore("/var/interop-gateway/dead-letters"));
+const config = loadPipelineConfig(yamlText);
+const running = await runPipeline(config, { deadLetterQueue });
+
+// later, after fixing whatever caused the failures:
+const result = await replayDeadLetters(config, deadLetterQueue);
+result; // { replayed, succeeded, failed } — a message that fails again stays queued with attempts incremented`}
       />
 
       <h2 id="secrets-guard" className="mt-8">
@@ -192,17 +224,18 @@ assertNotRawCredential(privateKeyJwk.d, "auth.privateKey"); // throws if it look
         connector-smart-generic internals
       </h2>
       <p style={muted}>
-        <code>SmartClient</code> is built from three pieces also exported directly, for a custom
-        connector variant instead of <code>SmartClient</code> as-is.
+        <code>SmartClient</code> is built from pieces also exported directly, for a custom connector
+        variant instead of <code>SmartClient</code> as-is.
       </p>
       <CodeBlock
         lang="ts"
         code={`import { fetchAccessToken, TokenManager, classifyWriteFailureStatus } from "@interop-gateway/connector-smart-generic";
 
-// Run the token exchange standalone, without a SmartClient instance
+// Run the backend-services token exchange standalone, without a SmartClient instance
 const token = await fetchAccessToken(authConfig); // { accessToken, expiresAt, ... }
 
-// The caching/auto-refresh wrapper SmartClient uses internally
+// The caching/auto-refresh wrapper SmartClient uses internally — re-runs client-credentials
+// for backend-services auth, grant_type=refresh_token for authorization_code
 const tokenManager = new TokenManager(authConfig, secretsProvider);
 const cached = await tokenManager.getToken(); // reuses if >30s from expiry, else refreshes
 
@@ -210,6 +243,65 @@ const cached = await tokenManager.getToken(); // reuses if >30s from expiry, els
 classifyWriteFailureStatus(409); // "CONFLICT"
 classifyWriteFailureStatus(422); // "VALIDATION_FAILED"
 classifyWriteFailureStatus(500); // "REQUEST_FAILED"`}
+      />
+
+      <h2 id="connector-authorize" className="mt-8">
+        connector-smart-generic: interactive authorization_code + PKCE
+      </h2>
+      <p style={muted}>
+        The pieces of the patient/clinician-facing SMART App Launch flow — this package builds the
+        authorization URL and exchanges the returned code; the actual browser redirect and
+        login/consent screen are inherently the caller's to drive, no server-side package can
+        automate that step.
+      </p>
+      <CodeBlock
+        lang="ts"
+        code={`import { generatePkce, buildAuthorizationUrl, exchangeAuthorizationCode, refreshAccessToken } from "@interop-gateway/connector-smart-generic";
+
+// generatePkce() alone, if you want the raw verifier/challenge instead of a full request:
+const { codeVerifier, codeChallenge } = await generatePkce(); // S256 — SHA-256 digest, base64url
+
+// buildAuthorizationUrl() does this plus the rest of the redirect URL:
+const { url, codeVerifier: cv, state } = await buildAuthorizationUrl({
+  authorizeUrl, clientId, redirectUri, scope, aud, launch, // aud/launch: EHR-launch only
+});
+
+// After the redirect back with ?code=...&state=...:
+const token = await exchangeAuthorizationCode({ tokenUrl, code, redirectUri, clientId, codeVerifier: cv });
+
+// Refreshing later without repeating the redirect (needs offline_access in scope):
+const refreshed = await refreshAccessToken({ tokenUrl, refreshToken: token.refreshToken!, clientId });`}
+      />
+
+      <h2 id="connector-bulk-export" className="mt-8">
+        connector-smart-generic: Bulk Data ($export)
+      </h2>
+      <p style={muted}>
+        System-, patient-, and group-level export per the{" "}
+        <a href="https://hl7.org/fhir/uv/bulkdata/" target="_blank" rel="noreferrer">
+          FHIR Bulk Data Access IG
+        </a>{" "}
+        — kick-off, async status polling (honoring <code>Retry-After</code>), and NDJSON output
+        download, all as methods on <code>SmartClient</code>.
+      </p>
+      <CodeBlock
+        lang="ts"
+        code={`import { parseNdjson } from "@interop-gateway/connector-smart-generic";
+
+const job = await client.startBulkExport({ level: "group", groupId: "cohort-1", types: ["Patient"] });
+// job.statusUrl — the Content-Location the server returned
+
+const completed = await client.pollBulkExportUntilComplete(job); // or poll checkBulkExportStatus() yourself
+completed.output; // [{ type, url, count? }, ...]
+
+for (const file of completed.output) {
+  const ndjsonText = await client.downloadBulkExportFile(file, {
+    requiresAccessToken: completed.requiresAccessToken, // per the IG — not every server needs a token on the file URL
+  });
+  const resources = parseNdjson(ndjsonText); // one parsed resource per line
+}
+
+await client.cancelBulkExport(job); // DELETE the job before it completes, if needed`}
       />
     </div>
   );

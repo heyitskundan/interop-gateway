@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { TokenManager } from "../src/token-manager.js";
-import type { SymmetricAuth } from "../src/token.js";
-import type { SecretsProvider } from "@interop-gateway/core";
+import type { AccessToken, AuthorizationCodeAuth, SymmetricAuth } from "../src/token.js";
+import { GatewayError, type SecretsProvider } from "@interop-gateway/core";
 
 const auth: SymmetricAuth = {
   method: "client_secret_post",
@@ -113,6 +113,116 @@ describe("TokenManager", () => {
     const token = await manager.getToken();
 
     expect(token.accessToken).toBe("cached-token");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+});
+
+function mockRefreshResponse(accessToken: string, expiresIn = 300): ReturnType<typeof vi.fn> {
+  const fetchMock = vi.fn().mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: () =>
+      Promise.resolve({
+        access_token: accessToken,
+        token_type: "Bearer",
+        expires_in: expiresIn,
+        scope: "patient/Patient.read offline_access",
+        refresh_token: "refresh-2",
+      }),
+  });
+  vi.stubGlobal("fetch", fetchMock);
+  return fetchMock;
+}
+
+describe("TokenManager — authorization_code", () => {
+  function authWith(initialToken: AccessToken): AuthorizationCodeAuth {
+    return {
+      method: "authorization_code",
+      tokenUrl: "https://sandbox.example.org/auth/token",
+      clientId: "test-client",
+      redirectUri: "https://app.example.org/callback",
+      initialToken,
+    };
+  }
+
+  it("returns the initial token without any fetch while it's still valid", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const manager = new TokenManager(
+      authWith({
+        accessToken: "initial-token",
+        tokenType: "Bearer",
+        expiresAt: Date.now() + 60_000,
+        scope: "patient/Patient.read",
+        refreshToken: "refresh-1",
+      }),
+    );
+
+    const token = await manager.getToken();
+
+    expect(token.accessToken).toBe("initial-token");
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("refreshes via grant_type=refresh_token once the initial token is near expiry", async () => {
+    const fetchMock = mockRefreshResponse("refreshed-token");
+    const manager = new TokenManager(
+      authWith({
+        accessToken: "initial-token",
+        tokenType: "Bearer",
+        expiresAt: Date.now() + 10_000, // within the 30s refresh margin
+        scope: "patient/Patient.read",
+        refreshToken: "refresh-1",
+      }),
+    );
+
+    const token = await manager.getToken();
+
+    expect(token.accessToken).toBe("refreshed-token");
+    const [, requestInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const sentBody = new URLSearchParams(requestInit.body as string);
+    expect(sentBody.get("grant_type")).toBe("refresh_token");
+    expect(sentBody.get("refresh_token")).toBe("refresh-1");
+  });
+
+  it("uses the rotated refresh_token from a prior refresh on the next refresh", async () => {
+    mockRefreshResponse("refreshed-token", 10); // itself near-expiry, forcing a second refresh
+    const manager = new TokenManager(
+      authWith({
+        accessToken: "initial-token",
+        tokenType: "Bearer",
+        expiresAt: Date.now() + 10_000,
+        scope: "patient/Patient.read",
+        refreshToken: "refresh-1",
+      }),
+    );
+    await manager.getToken();
+
+    const fetchMock = mockRefreshResponse("refreshed-token-2");
+    await manager.getToken();
+
+    const [, requestInit] = fetchMock.mock.calls[0] as [URL, RequestInit];
+    const sentBody = new URLSearchParams(requestInit.body as string);
+    // "refresh-2" is what mockRefreshResponse's body always returns as the new
+    // refresh_token — proves the manager tracked the rotated token, not the original.
+    expect(sentBody.get("refresh_token")).toBe("refresh-2");
+  });
+
+  it("throws REFRESH_TOKEN_UNAVAILABLE instead of calling fetch when there is no refresh token", async () => {
+    const fetchMock = vi.fn();
+    vi.stubGlobal("fetch", fetchMock);
+    const manager = new TokenManager(
+      authWith({
+        accessToken: "initial-token",
+        tokenType: "Bearer",
+        expiresAt: Date.now() + 10_000,
+        scope: "patient/Patient.read",
+        // no refreshToken — e.g. offline_access wasn't granted
+      }),
+    );
+
+    await expect(manager.getToken()).rejects.toThrow(GatewayError);
+    await expect(manager.getToken()).rejects.toMatchObject({ code: "REFRESH_TOKEN_UNAVAILABLE" });
     expect(fetchMock).not.toHaveBeenCalled();
   });
 });

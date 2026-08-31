@@ -42,23 +42,30 @@ const result: StructuralValidationResult = gateway.validate(hl7v2Message);
 - `enforceTls()` — every outbound connection in every connector/protocol package must
   route its target URL through this first.
 - `EncryptedStore` — AES-256-GCM wrapper around any key/value `Store`, for anything a
-  deployment chooses to persist. Not used by any of the 13 packages today — `engine`'s
-  and `mcp-server`'s audit entries go to an injectable `AuditSink` that defaults to an
-  in-memory instance, and connector token caching goes through `SecretsProvider`
-  instead. Wire your own persistence through `EncryptedStore` if you need it.
+  deployment chooses to persist. `engine`'s CLI wraps its default on-disk audit log and
+  dead-letter queue in this when `persistence.*.encryptPassphrase` is set in a pipeline
+  config; connector token caching still goes through `SecretsProvider` instead, not this.
+- `FileStore` (`@interop-gateway/core/node` — a separate, Node-only entry point so a
+  browser bundle importing the main `@interop-gateway/core` export never pulls in
+  `node:fs`/`node:path`) — the on-disk `Store` implementation `engine`'s `FileAuditLog`
+  and `FileDeadLetterQueue` use by default; one file per key under a directory, key
+  names base64url-encoded so no key can escape it.
 - `ScopeSet` — checks a SMART on FHIR token's granted scopes before a request is made,
   rather than trusting the server to reject an out-of-scope call.
-- `HashChainedAuditLog` — append-only, tamper-evident audit log that refuses to accept
-  an entry containing a PHI-shaped value.
+- `HashChainedAuditLog` — append-only, tamper-evident, in-memory audit log that refuses
+  to accept an entry whose `correlationId`/`who`/`what`/`resourceType` matches an
+  SSN, MRN-labeled identifier, email address, phone number, or bare 9-11 digit
+  identifier shape. `append()` clones the entry before storing it, so mutating the
+  object you passed in afterward can't rewrite stored history.
+- `FileAuditLog` — same hash-chained log and PHI check as `HashChainedAuditLog`, but
+  persisted through a `Store` (so it survives a restart, and — wrapped in
+  `EncryptedStore` — is encrypted at rest) instead of held only in process memory.
 - `SecretsProvider` — the interface every `secrets-*` package implements; `core` never
   stores a plaintext secret itself.
 - `createEnvelope()`/`withPayload()`/`Envelope` — wraps a payload with a correlation ID,
   timestamp, and source label the moment it's ingested. `engine`/`mcp-server` use
   `createEnvelope()` directly; `withPayload()` (swap the payload, keep the same
   correlation ID) has no consumer in this monorepo yet.
-- `Pipeline`/`Stage` — the composable envelope-in/envelope-out chaining abstraction.
-  Exported and tested here, but no package uses it — `engine`'s pipeline is hand-rolled
-  sequential logic that predates it.
 - `InMemoryStore` — the reference `Store` implementation (used by tests and by anything
   that hasn't wired a real backend), implementing `EncryptedStore`'s three-method
   `Store` interface (`get`/`set`/`delete`) over a `Map`.
@@ -75,9 +82,9 @@ const result: StructuralValidationResult = gateway.validate(hl7v2Message);
 See the root [SECURITY.md](https://github.com/heyitskundan/interop-gateway/blob/main/SECURITY.md)
 for the full model. In short: no PHI in logs/errors (paths only, never values), TLS
 enforced everywhere, `EncryptedStore` as the primitive for anything a deployment
-chooses to persist (not enforced automatically — see `SECURITY.md` for what's wired in
-by default versus what you still have to plug in), and this package alone does not make
-a deployment HIPAA- or SOC 2-compliant.
+chooses to persist — `engine`'s CLI wires it in by default for the audit log and
+dead-letter queue when a passphrase is configured, encryption itself stays opt-in — and
+this package alone does not make a deployment HIPAA- or SOC 2-compliant.
 
 ## CLI
 

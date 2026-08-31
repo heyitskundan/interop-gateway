@@ -130,12 +130,13 @@ const bundle = gateway.translate(hl7v2Message, options);`,
             make your deployment compliant.
           </p>
           <p className="text-sm" style={muted}>
-            What the library does concretely: enforces TLS everywhere, ships an encrypted-storage
-            primitive (<code>EncryptedStore</code>, AES-256-GCM) for anything a deployment chooses
-            to persist, writes a tamper-evident audit entry for every <code>engine</code>/
-            <code>mcp-server</code> call (in-memory by default — bring your own durable, encrypted{" "}
-            <code>AuditSink</code>), checks SMART scopes before every read/write, never logs a PHI
-            value (structural shape and FHIR/HL7 paths only), and never stores a plaintext secret —
+            What the library does concretely: enforces TLS everywhere; writes a tamper-evident audit
+            entry for every <code>engine</code>/<code>mcp-server</code> call, persisted to disk by
+            default and refusing to persist unencrypted unless you explicitly opt out (
+            <code>ephemeral: true</code> for tests, <code>allowUnencryptedPersistence: true</code>{" "}
+            to consciously accept plaintext-on-disk) — the same rule applies to a dead-letter queue
+            once you configure one; checks SMART scopes before every read/write; never logs a PHI
+            value (structural shape and FHIR/HL7 paths only); and never stores a plaintext secret —
             see{" "}
             <a
               href="https://github.com/heyitskundan/interop-gateway/blob/main/SECURITY.md"
