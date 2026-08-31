@@ -31,14 +31,22 @@ jobs:
         if: always()
         # Same four patterns scripts/check-secrets.mjs blocks at commit time (SSN, MRN,
         # private key, AWS key) — this is the defense-in-depth sweep for anything that
-        # slipped past that hook (e.g. a --no-verify commit).
+        # slipped past that hook (e.g. a --no-verify commit). A line ending in the
+        # synthetic-pattern-for-detection-test marker is excluded first — the same
+        # exemption check-secrets.mjs makes, for test fixtures that intentionally
+        # contain a synthetic pattern to verify the detection logic itself.
         run: |
+          found=0
           for f in $(git ls-files); do
             case "$f" in
               *.png|*.jpg|*.jpeg|*.gif|*.ico|*.woff|*.woff2|*.ttf) continue ;;
             esac
-            grep -liE '\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b|\bMRN[: #]*[0-9]{6,10}\b|-----BEGIN (RSA |EC )?PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b' "$f" 2>/dev/null && echo "::error file=$f::possible PHI/secret pattern"
+            if grep -v 'synthetic-pattern-for-detection-test' "$f" 2>/dev/null | grep -qiE '\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b|\bMRN[: #]*[0-9]{6,10}\b|-----BEGIN (RSA |EC )?PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b'; then
+              echo "::error file=$f::possible PHI/secret pattern"
+              found=1
+            fi
           done
+          exit "$found"
 
       - name: Open issue on failure
         if: failure()

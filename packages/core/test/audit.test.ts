@@ -34,8 +34,8 @@ describe("HashChainedAuditLog", () => {
   });
 
   it.each([
-    ["an SSN-shaped string", "Patient SSN 123-45-6789 read"],
-    ["an MRN-shaped string", "Patient MRN: 1234567 read"],
+    ["an SSN-shaped string", "Patient SSN 123-45-6789 read"], // synthetic-pattern-for-detection-test
+    ["an MRN-shaped string", "Patient MRN: 1234567 read"], // synthetic-pattern-for-detection-test
   ])("rejects an audit entry containing %s", async (_label, what) => {
     const log = new HashChainedAuditLog();
     await expect(log.append({ ...baseEntry, what })).rejects.toThrow(GatewayError);
