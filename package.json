@@ -38,6 +38,9 @@
   "lint-staged": {
     "packages/*/src/**/*.ts": [
       "bash -c 'npm run typecheck --workspaces --if-present'"
+    ],
+    "client/src/**/*.{ts,tsx}": [
+      "bash -c 'npm run typecheck --workspaces --if-present'"
     ]
   }
 }

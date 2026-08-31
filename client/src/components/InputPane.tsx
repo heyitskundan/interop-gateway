@@ -15,7 +15,10 @@ interface Props {
 }
 
 const PLACEHOLDER: Record<Format, Record<Direction, string>> = {
-  hl7v2: { toFhir: "Paste an HL7v2 message…", fromFhir: "Paste a FHIR R4 resource or Bundle (JSON)…" },
+  hl7v2: {
+    toFhir: "Paste an HL7v2 message…",
+    fromFhir: "Paste a FHIR R4 resource or Bundle (JSON)…",
+  },
   cda: { toFhir: "Paste C-CDA XML…", fromFhir: "Paste a FHIR R4 resource or Bundle (JSON)…" },
 };
 

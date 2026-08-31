@@ -29,12 +29,15 @@ jobs:
 
       - name: Scan full history for secret/PHI patterns
         if: always()
+        # Same four patterns scripts/check-secrets.mjs blocks at commit time (SSN, MRN,
+        # private key, AWS key) — this is the defense-in-depth sweep for anything that
+        # slipped past that hook (e.g. a --no-verify commit).
         run: |
           for f in $(git ls-files); do
             case "$f" in
               *.png|*.jpg|*.jpeg|*.gif|*.ico|*.woff|*.woff2|*.ttf) continue ;;
             esac
-            grep -lE '\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b|-----BEGIN (RSA |EC )?PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b' "$f" 2>/dev/null && echo "::error file=$f::possible PHI/secret pattern"
+            grep -liE '\b[0-9]{3}-[0-9]{2}-[0-9]{4}\b|\bMRN[: #]*[0-9]{6,10}\b|-----BEGIN (RSA |EC )?PRIVATE KEY-----|\bAKIA[0-9A-Z]{16}\b' "$f" 2>/dev/null && echo "::error file=$f::possible PHI/secret pattern"
           done
 
       - name: Open issue on failure

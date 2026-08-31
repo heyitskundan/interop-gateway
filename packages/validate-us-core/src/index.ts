@@ -33,7 +33,7 @@ export function validateUsCore(resource: unknown): UsCoreValidationResult {
       resourceType: "unknown",
       supported: false,
       valid: false,
-      issues: ["Resource is missing a string \"resourceType\" field"],
+      issues: ['Resource is missing a string "resourceType" field'],
     };
   }
 

@@ -41,7 +41,10 @@ describe("HttpIngestServer (real HTTP, localhost)", () => {
   });
 
   it("returns 404 when a path filter is set and the request path doesn't match", async () => {
-    const server = new HttpIngestServer({ handler: async () => ({ status: 200 }), path: "/ingest" });
+    const server = new HttpIngestServer({
+      handler: async () => ({ status: 200 }),
+      path: "/ingest",
+    });
     activeServer = server;
     await server.listen(0, "127.0.0.1");
     const port = server.address()!.port;

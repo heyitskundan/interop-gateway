@@ -10,7 +10,9 @@ const credentials = { accessKeyId: "AKIAFAKE", secretAccessKey: "fake-secret" };
 
 describe("AwsSecretsManagerProvider", () => {
   it("getSecret sends GetSecretValue and returns SecretString", async () => {
-    const fetcher = vi.fn<SignedFetcher>(async () => jsonResponse(200, { SecretString: "value-123" }));
+    const fetcher = vi.fn<SignedFetcher>(async () =>
+      jsonResponse(200, { SecretString: "value-123" }),
+    );
     const provider = new AwsSecretsManagerProvider({ region: "us-east-1", credentials, fetcher });
 
     const value = await provider.getSecret({ name: "epic-client-secret" });
@@ -102,7 +104,9 @@ describe("AwsSecretsManagerProvider", () => {
   });
 
   it("deleteSecret throws GatewayError on a non-2xx response", async () => {
-    const fetcher = vi.fn<SignedFetcher>(async () => jsonResponse(404, { __type: "ResourceNotFoundException" }));
+    const fetcher = vi.fn<SignedFetcher>(async () =>
+      jsonResponse(404, { __type: "ResourceNotFoundException" }),
+    );
     const provider = new AwsSecretsManagerProvider({ region: "us-east-1", credentials, fetcher });
 
     await expect(provider.deleteSecret({ name: "foo" })).rejects.toThrow(GatewayError);
@@ -118,9 +122,36 @@ describe("AwsSecretsManagerProvider", () => {
     await expect(provider.setSecret({ name: "bad name" }, "x")).rejects.toThrow(/invalid name/);
   });
 
+  it("getSecret wraps a rejecting fetcher (network failure) as GatewayError instead of crashing", async () => {
+    const fetcher = vi.fn<SignedFetcher>(async () => {
+      throw new Error("getaddrinfo ENOTFOUND secretsmanager.us-east-1.amazonaws.com");
+    });
+    const provider = new AwsSecretsManagerProvider({ region: "us-east-1", credentials, fetcher });
+
+    await expect(provider.getSecret({ name: "foo" })).rejects.toThrow(GatewayError);
+    await expect(provider.getSecret({ name: "foo" })).rejects.toThrow(/ENOTFOUND/);
+  });
+
+  it("setSecret wraps a rejecting fetcher as GatewayError without attempting the CreateSecret fallback", async () => {
+    const fetcher = vi.fn<SignedFetcher>(async () => {
+      throw new Error("network unreachable");
+    });
+    const provider = new AwsSecretsManagerProvider({ region: "us-east-1", credentials, fetcher });
+
+    await expect(provider.setSecret({ name: "foo" }, "x")).rejects.toThrow(GatewayError);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("deleteSecret wraps a rejecting fetcher as GatewayError instead of crashing", async () => {
+    const fetcher = vi.fn<SignedFetcher>(async () => {
+      throw new Error("network unreachable");
+    });
+    const provider = new AwsSecretsManagerProvider({ region: "us-east-1", credentials, fetcher });
+
+    await expect(provider.deleteSecret({ name: "foo" })).rejects.toThrow(GatewayError);
+  });
+
   it("builds a default aws4fetch-backed client when no fetcher is given", () => {
-    expect(
-      () => new AwsSecretsManagerProvider({ region: "us-east-1", credentials }),
-    ).not.toThrow();
+    expect(() => new AwsSecretsManagerProvider({ region: "us-east-1", credentials })).not.toThrow();
   });
 });

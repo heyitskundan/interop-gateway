@@ -80,8 +80,16 @@ scope enforcement, TLS enforcement, and the OAuth2 flows themselves; (3) the sec
 provider implementations — anywhere a real credential could be logged, cached in
 plaintext, or transmitted somewhere other than the auth exchange; (4) the MLLP/HTTP/file
 protocol adapters — network-facing parsing and delivery code. Reports about the demo
-app in `client/` (a static, client-side-only page using sandbox credentials only) are
-also in scope, though its attack surface is smaller for the same reasons.
+app in `client/` are also in scope — it's a static, client-side-only page that
+translates a pasted HL7v2/C-CDA message entirely locally in the browser: the pasted
+input, and everything the translator does with it, never leaves the tab, and the page
+has no connector/OAuth flow of its own. The one network call the page does make is
+loading web fonts from Google Fonts via a CSS `@import` — unrelated to translation, no
+pasted content or PHI involved, but worth stating plainly rather than claiming zero
+network activity. Its attack surface is limited to the translation code path itself
+(same parsers as (1) above) and standard web-app concerns (XSS from rendering arbitrary
+pasted input, dependency vulnerabilities in the built bundle, the Google Fonts request
+itself as a third-party dependency).
 
 Out of scope: vulnerabilities in this repo's own `devDependencies` (build/test tooling)
 that don't affect a published package or the built demo — track those via `npm audit`

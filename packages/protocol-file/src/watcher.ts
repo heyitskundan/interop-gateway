@@ -33,7 +33,10 @@ export class FileIngestWatcher {
   private timer: ReturnType<typeof setInterval> | undefined;
 
   constructor(private readonly options: FileIngestWatcherOptions) {
-    this.processedDir = join(options.directory, options.processedSubdir ?? DEFAULT_PROCESSED_SUBDIR);
+    this.processedDir = join(
+      options.directory,
+      options.processedSubdir ?? DEFAULT_PROCESSED_SUBDIR,
+    );
     this.errorDir = join(options.directory, options.errorSubdir ?? DEFAULT_ERROR_SUBDIR);
   }
 

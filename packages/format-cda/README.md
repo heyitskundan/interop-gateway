@@ -41,6 +41,12 @@ const gateway = new InteropGateway({ formats: [formatCda] });
 const bundle = gateway.translate(cdaXml, { from: "cda", to: "fhir" });
 ```
 
+## Coverage
+
+Tracks whatever C-CDA sections the installed `cda-fhir-translator` version supports —
+see that package's own README for the current list. This wrapper does not narrow or
+extend that coverage.
+
 ## License
 
 Apache-2.0 — see [LICENSE](../../LICENSE).

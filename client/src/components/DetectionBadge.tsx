@@ -19,8 +19,10 @@ interface Detected {
  * HL7v2 or C-CDA, so only `direction` is inferred there, not `format`). */
 function detect(value: string): Detected | undefined {
   const trimmed = value.trimStart();
-  if (trimmed.startsWith("MSH|")) return { label: "Detected: HL7v2 message", format: "hl7v2", direction: "toFhir" };
-  if (trimmed.startsWith("<")) return { label: "Detected: C-CDA XML", format: "cda", direction: "toFhir" };
+  if (trimmed.startsWith("MSH|"))
+    return { label: "Detected: HL7v2 message", format: "hl7v2", direction: "toFhir" };
+  if (trimmed.startsWith("<"))
+    return { label: "Detected: C-CDA XML", format: "cda", direction: "toFhir" };
   if (trimmed.startsWith("{")) return { label: "Detected: FHIR JSON", direction: "fromFhir" };
   return undefined;
 }
@@ -37,7 +39,8 @@ export function DetectionBadge({ value, format, direction, onSwitch }: Props) {
   }
 
   const mismatch =
-    detected.direction !== direction || (detected.format !== undefined && detected.format !== format);
+    detected.direction !== direction ||
+    (detected.format !== undefined && detected.format !== format);
 
   return (
     <div className="flex items-center gap-2 text-xs">

@@ -14,7 +14,10 @@ afterEach(async () => {
   activeDir = undefined;
 });
 
-async function waitFor(condition: () => Promise<boolean> | boolean, timeoutMs = 3000): Promise<void> {
+async function waitFor(
+  condition: () => Promise<boolean> | boolean,
+  timeoutMs = 3000,
+): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (await condition()) return;

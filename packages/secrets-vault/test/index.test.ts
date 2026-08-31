@@ -10,7 +10,8 @@ describe("VaultSecretsProvider", () => {
   it("throws immediately for a non-https vaultAddr, without calling the fetcher", () => {
     const fetcher = vi.fn();
     expect(
-      () => new VaultSecretsProvider({ vaultAddr: "http://vault.internal:8200", token: "t", fetcher }),
+      () =>
+        new VaultSecretsProvider({ vaultAddr: "http://vault.internal:8200", token: "t", fetcher }),
     ).toThrow(GatewayError);
     expect(fetcher).not.toHaveBeenCalled();
   });
@@ -52,7 +53,9 @@ describe("VaultSecretsProvider", () => {
   });
 
   it("getSecret throws GatewayError with Vault's error list on a non-2xx response", async () => {
-    const fetcher = vi.fn<Fetcher>(async () => jsonResponse(403, { errors: ["permission denied"] }));
+    const fetcher = vi.fn<Fetcher>(async () =>
+      jsonResponse(403, { errors: ["permission denied"] }),
+    );
     const provider = new VaultSecretsProvider({
       vaultAddr: "https://vault.internal:8200",
       token: "bad-token",

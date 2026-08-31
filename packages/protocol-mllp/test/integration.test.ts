@@ -1,6 +1,8 @@
 import { afterEach, describe, expect, it } from "vitest";
+import { connect } from "node:net";
 import { MllpServer, type MllpHandlerResult } from "../src/server.js";
 import { sendMllpMessage } from "../src/client.js";
+import { frameMllp } from "../src/framing.js";
 import { GatewayError } from "@interop-gateway/core";
 
 const SAMPLE_MESSAGE =
@@ -75,6 +77,35 @@ describe("MllpServer + sendMllpMessage (real TCP, localhost)", () => {
     expect(first.acknowledged).toBe(true);
     expect(second.acknowledged).toBe(true);
     expect(received).toHaveLength(2);
+  });
+
+  it("acknowledges frames in arrival order even when two arrive in one TCP chunk and the first handler is slower", async () => {
+    const port = await startServer(async (message) => {
+      const isFirst = message.includes("MSG001");
+      if (isFirst) await new Promise((resolve) => setTimeout(resolve, 50));
+      return { code: "AA" };
+    });
+
+    const second = SAMPLE_MESSAGE.replace("MSG001", "MSG002");
+    const bothFramesInOneChunk = Buffer.concat([frameMllp(SAMPLE_MESSAGE), frameMllp(second)]);
+
+    const acks: string[] = await new Promise((resolve, reject) => {
+      const socket = connect(port, "127.0.0.1", () => socket.write(bothFramesInOneChunk));
+      let received = "";
+      socket.on("data", (chunk) => {
+        received += chunk.toString("latin1");
+        const frames = received.split("\x1c\r").filter(Boolean);
+        if (frames.length >= 2) {
+          socket.end();
+          resolve(frames.map((frame) => (frame.startsWith("\x0b") ? frame.slice(1) : frame)));
+        }
+      });
+      socket.on("error", reject);
+      setTimeout(() => reject(new Error("timed out waiting for two ACKs")), 5000);
+    });
+
+    expect(acks[0]).toContain("MSG001");
+    expect(acks[1]).toContain("MSG002");
   });
 
   it("throws GatewayError after exhausting retries against a closed port", async () => {

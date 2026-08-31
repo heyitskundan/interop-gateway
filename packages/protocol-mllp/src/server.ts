@@ -44,12 +44,17 @@ export class MllpServer {
 
   private handleConnection(socket: Socket): void {
     let buffer: Buffer = Buffer.alloc(0);
+    // Chains each frame's processing onto the previous one, so ACKs are written in the
+    // same order the frames arrived even if multiple frames land in one TCP chunk —
+    // otherwise a faster handler for a later frame could write its ACK first.
+    let chain: Promise<void> = Promise.resolve();
     socket.on("data", (chunk: Buffer) => {
       buffer = Buffer.concat([buffer, chunk]);
       let unframed = tryUnframeMllp(buffer);
       while (unframed) {
         buffer = unframed.rest;
-        void this.processMessage(unframed.message, socket);
+        const message = unframed.message;
+        chain = chain.then(() => this.processMessage(message, socket));
         unframed = tryUnframeMllp(buffer);
       }
     });

@@ -16,7 +16,16 @@ export function main(argv: string[]): void {
     return;
   }
 
-  const input = readFileSync(filePath, "utf8");
+  let input: string;
+  try {
+    input = readFileSync(filePath, "utf8");
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    process.stderr.write(`Could not read "${filePath}": ${message}\n`);
+    process.exitCode = 2;
+    return;
+  }
+
   const result = validateStructural(input);
   process.stdout.write(`${JSON.stringify(result, null, 2)}\n`);
   process.exitCode = result.valid ? 0 : 1;

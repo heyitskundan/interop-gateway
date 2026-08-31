@@ -116,6 +116,233 @@ describe("validateUsCore", () => {
 
     expect(result.valid).toBe(true);
   });
+
+  it("passes an Immunization whose occurrence[x] is occurrenceString, not occurrenceDateTime", () => {
+    const result = validateUsCore({
+      resourceType: "Immunization",
+      status: "completed",
+      vaccineCode: { coding: [{ code: "08" }] },
+      patient: { reference: "Patient/1" },
+      occurrenceString: "unknown",
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags an Immunization with no occurrence[x] at all", () => {
+    const result = validateUsCore({
+      resourceType: "Immunization",
+      status: "completed",
+      vaccineCode: {},
+      patient: {},
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: Immunization.occurrence[x]");
+  });
+
+  it("validates a Procedure with status, code, and subject", () => {
+    const result = validateUsCore({
+      resourceType: "Procedure",
+      status: "completed",
+      code: { coding: [{ code: "80146002" }] },
+      subject: { reference: "Patient/1" },
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a Procedure missing code", () => {
+    const result = validateUsCore({
+      resourceType: "Procedure",
+      status: "completed",
+      subject: {},
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: Procedure.code");
+  });
+
+  it("validates an Encounter with status, class, and subject", () => {
+    const result = validateUsCore({
+      resourceType: "Encounter",
+      status: "in-progress",
+      class: { code: "AMB" },
+      subject: { reference: "Patient/1" },
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags an Encounter missing class", () => {
+    const result = validateUsCore({
+      resourceType: "Encounter",
+      status: "in-progress",
+      subject: {},
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: Encounter.class");
+  });
+
+  it("validates a DiagnosticReport with status, code, subject, and category", () => {
+    const result = validateUsCore({
+      resourceType: "DiagnosticReport",
+      status: "final",
+      code: { coding: [{ code: "58410-2" }] },
+      subject: { reference: "Patient/1" },
+      category: [{ coding: [{ code: "LAB" }] }],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a DiagnosticReport missing category", () => {
+    const result = validateUsCore({
+      resourceType: "DiagnosticReport",
+      status: "final",
+      code: {},
+      subject: {},
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain(
+      "Missing required element: DiagnosticReport.category (at least one)",
+    );
+  });
+
+  it("validates a CareTeam with status, subject, and at least one participant", () => {
+    const result = validateUsCore({
+      resourceType: "CareTeam",
+      status: "active",
+      subject: { reference: "Patient/1" },
+      participant: [{ member: { reference: "Practitioner/1" } }],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a CareTeam with an empty participant array", () => {
+    const result = validateUsCore({
+      resourceType: "CareTeam",
+      status: "active",
+      subject: {},
+      participant: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain(
+      "Missing required element: CareTeam.participant (at least one)",
+    );
+  });
+
+  it("validates a Coverage with status, beneficiary, and at least one payor", () => {
+    const result = validateUsCore({
+      resourceType: "Coverage",
+      status: "active",
+      beneficiary: { reference: "Patient/1" },
+      payor: [{ reference: "Organization/1" }],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a Coverage missing payor", () => {
+    const result = validateUsCore({ resourceType: "Coverage", status: "active", beneficiary: {} });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: Coverage.payor (at least one)");
+  });
+
+  it("validates a Device with patient and type", () => {
+    const result = validateUsCore({
+      resourceType: "Device",
+      patient: { reference: "Patient/1" },
+      type: { coding: [{ code: "123" }] },
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a Device missing type", () => {
+    const result = validateUsCore({ resourceType: "Device", patient: {} });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: Device.type");
+  });
+
+  it("validates a DocumentReference with status, type, subject, and content", () => {
+    const result = validateUsCore({
+      resourceType: "DocumentReference",
+      status: "current",
+      type: { coding: [{ code: "34133-9" }] },
+      subject: { reference: "Patient/1" },
+      content: [{ attachment: { contentType: "application/pdf" } }],
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a DocumentReference with an empty content array", () => {
+    const result = validateUsCore({
+      resourceType: "DocumentReference",
+      status: "current",
+      type: {},
+      subject: {},
+      content: [],
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain(
+      "Missing required element: DocumentReference.content (at least one)",
+    );
+  });
+
+  it("validates a Goal with lifecycleStatus, description, and subject", () => {
+    const result = validateUsCore({
+      resourceType: "Goal",
+      lifecycleStatus: "active",
+      description: { text: "Lower A1c" },
+      subject: { reference: "Patient/1" },
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a Goal missing description", () => {
+    const result = validateUsCore({
+      resourceType: "Goal",
+      lifecycleStatus: "active",
+      subject: {},
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: Goal.description");
+  });
+
+  it("validates a ServiceRequest with status, intent, code, and subject", () => {
+    const result = validateUsCore({
+      resourceType: "ServiceRequest",
+      status: "active",
+      intent: "order",
+      code: { coding: [{ code: "24627-2" }] },
+      subject: { reference: "Patient/1" },
+    });
+
+    expect(result.valid).toBe(true);
+  });
+
+  it("flags a ServiceRequest missing intent", () => {
+    const result = validateUsCore({
+      resourceType: "ServiceRequest",
+      status: "active",
+      code: {},
+      subject: {},
+    });
+
+    expect(result.valid).toBe(false);
+    expect(result.issues).toContain("Missing required element: ServiceRequest.intent");
+  });
 });
 
 describe("validateUsCoreBundle", () => {
@@ -123,7 +350,13 @@ describe("validateUsCoreBundle", () => {
     const results = validateUsCoreBundle({
       resourceType: "Bundle",
       entry: [
-        { resource: { resourceType: "Patient", identifier: [{ value: "1" }], name: [{ family: "Doe" }] } },
+        {
+          resource: {
+            resourceType: "Patient",
+            identifier: [{ value: "1" }],
+            name: [{ family: "Doe" }],
+          },
+        },
         {
           resource: {
             resourceType: "Condition",

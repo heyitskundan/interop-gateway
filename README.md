@@ -2,9 +2,10 @@
 
 A single TypeScript SDK for two problems healthtech integrations always hit separately:
 connecting to a live hospital system over SMART on FHIR, and translating between
-old-style HL7v2/CDA messages and modern FHIR. One `connect()`/`read()`/`write()`/
-`send()`/`translate()`/`validate()` API instead of ten different libraries for auth,
-format parsing, and delivery.
+old-style HL7v2/CDA messages and modern FHIR — `InteropGateway`'s `translate()`/
+`validate()` for the format side, `connector-smart-generic`'s `SmartClient`
+(`read()`/`write()`/`search()`) for live connectivity, instead of ten different
+libraries for auth, format parsing, and delivery.
 
 See [`docs/architecture.md`](./docs/architecture.md) for the package graph, data flow,
 and security model as actually built.

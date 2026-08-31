@@ -51,7 +51,11 @@ destination:
   directory: /data/outbound
 `);
 
-    expect(config.source).toEqual({ protocol: "file", directory: "/data/inbound", pollIntervalMs: 500 });
+    expect(config.source).toEqual({
+      protocol: "file",
+      directory: "/data/inbound",
+      pollIntervalMs: 500,
+    });
     expect(config.destination).toEqual({ protocol: "file", directory: "/data/outbound" });
   });
 
@@ -61,7 +65,9 @@ destination:
 
   it("throws ValidationError when name is missing", () => {
     expect(() =>
-      loadPipelineConfig("format: hl7v2\nsource:\n  protocol: file\n  directory: /x\ndestination:\n  protocol: file\n  directory: /y"),
+      loadPipelineConfig(
+        "format: hl7v2\nsource:\n  protocol: file\n  directory: /x\ndestination:\n  protocol: file\n  directory: /y",
+      ),
     ).toThrow(/"name"/);
   });
 

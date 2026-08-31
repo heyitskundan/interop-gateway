@@ -54,7 +54,7 @@ export function Packages() {
         id="format-hl7v2"
         name="format-hl7v2"
         summary="HL7v2 ↔ FHIR, wrapping the published hl7-fhir-translator package."
-        detail="Full coverage of the official HL7 v2-to-FHIR IG: all 14 IG-listed message types, segment/datatype/vocabulary depth. Adds no translation logic of its own — registers the translator as a FormatPlugin and normalizes its errors."
+        detail="Wraps hl7-fhir-translator's 16 supported message types (ADT, ORU, ORM, VXU, SIU, OML, MDM, RDE — see that package's own README for the full table), segment/datatype/vocabulary depth. Adds no translation logic of its own — registers the translator as a FormatPlugin and normalizes its errors."
       />
       <Pkg
         id="format-cda"
@@ -169,9 +169,10 @@ export function Packages() {
       </ul>
       <p style={muted}>
         <code>engine</code> is the piece that actually wires the first two axes together from a
-        config file for a deployable service; <code>mcp-server</code> exposes just the translation
-        piece to an AI client; a custom Node script can compose any of these directly, same as the
-        demo above does.
+        config file for a deployable service; <code>mcp-server</code> exposes the translation and
+        validation pieces to an AI client (not the connector/protocol/secrets pieces — an MCP tool
+        call carries no live connection or credential); a custom Node script can compose any of
+        these directly, same as the demo above does.
       </p>
       <p style={muted}>
         Two things that used to sit disconnected from this picture are wired in now:{" "}

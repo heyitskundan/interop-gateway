@@ -29,7 +29,25 @@ function awsErrorType(body: AwsErrorBody): string | undefined {
 
 function awsError(action: string, status: number, body: AwsErrorBody): GatewayError {
   const detail = body.message ?? body.Message ?? awsErrorType(body) ?? `HTTP ${status}`;
-  return new GatewayError(`AWS Secrets Manager ${action} failed: ${detail}`, "AWS_SM_REQUEST_FAILED");
+  return new GatewayError(
+    `AWS Secrets Manager ${action} failed: ${detail}`,
+    "AWS_SM_REQUEST_FAILED",
+  );
+}
+
+/** Wraps a caught error as `GatewayError`. If `error` isn't the `AwsRequestError` this
+ * module throws (a real network/DNS failure, or the fetcher rejecting before a
+ * `Response` exists), wraps its message directly instead of assuming an HTTP
+ * status/body are present. */
+function wrapCaughtError(action: string, error: unknown): GatewayError {
+  if (error instanceof AwsRequestError) {
+    return awsError(action, error.status, error.body);
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  return new GatewayError(
+    `AWS Secrets Manager ${action} failed: ${message}`,
+    "AWS_SM_REQUEST_FAILED",
+  );
 }
 
 class AwsRequestError extends Error {
@@ -61,7 +79,11 @@ export class AwsSecretsManagerProvider implements SecretsProvider {
     this.fetcher =
       options.fetcher ??
       (() => {
-        const client = new AwsClient({ ...options.credentials, service: "secretsmanager", region: options.region });
+        const client = new AwsClient({
+          ...options.credentials,
+          service: "secretsmanager",
+          region: options.region,
+        });
         return (url: string, init: RequestInit) => client.fetch(url, init);
       })();
   }
@@ -97,8 +119,7 @@ export class AwsSecretsManagerProvider implements SecretsProvider {
       return result.SecretString;
     } catch (error) {
       if (error instanceof GatewayError) throw error;
-      const { status, body } = error as AwsRequestError;
-      throw awsError("GetSecretValue", status, body);
+      throw wrapCaughtError("GetSecretValue", error);
     }
   }
 
@@ -106,15 +127,14 @@ export class AwsSecretsManagerProvider implements SecretsProvider {
     try {
       await this.request("PutSecretValue", { SecretId: ref.name, SecretString: value });
     } catch (error) {
-      const { status, body } = error as AwsRequestError;
-      if (awsErrorType(body) !== RESOURCE_NOT_FOUND) {
-        throw awsError("PutSecretValue", status, body);
+      if (!(error instanceof AwsRequestError)) throw wrapCaughtError("PutSecretValue", error);
+      if (awsErrorType(error.body) !== RESOURCE_NOT_FOUND) {
+        throw awsError("PutSecretValue", error.status, error.body);
       }
       try {
         await this.request("CreateSecret", { Name: ref.name, SecretString: value });
       } catch (createError) {
-        const { status: createStatus, body: createBody } = createError as AwsRequestError;
-        throw awsError("CreateSecret", createStatus, createBody);
+        throw wrapCaughtError("CreateSecret", createError);
       }
     }
   }
@@ -123,8 +143,7 @@ export class AwsSecretsManagerProvider implements SecretsProvider {
     try {
       await this.request("DeleteSecret", { SecretId: ref.name });
     } catch (error) {
-      const { status, body } = error as AwsRequestError;
-      throw awsError("DeleteSecret", status, body);
+      throw wrapCaughtError("DeleteSecret", error);
     }
   }
 }

@@ -31,8 +31,10 @@ await server.listen(8080);
 `HttpIngestServer` runs a plain HTTP listener — put a TLS-terminating reverse proxy or
 load balancer in front of it in production, the same deployment pattern most HL7v2/FHIR
 webhook receivers already use. A handler that throws produces a 500 with the error
-message as the body; requests over `maxBodyBytes` (default 10MB) also produce a 500. A
-`path` filter is optional — omit it to accept POSTs on any path. Non-POST requests get a 405.
+message as the body — this package doesn't sanitize that message before returning it,
+so a handler must not throw PHI-bearing text (see `SECURITY.md`'s no-PHI-in-errors
+rule) — and requests over `maxBodyBytes` (default 10MB) also produce a 500. A `path`
+filter is optional — omit it to accept POSTs on any path. Non-POST requests get a 405.
 
 ## Send
 

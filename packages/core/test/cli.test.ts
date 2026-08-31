@@ -28,6 +28,15 @@ describe("main (CLI entrypoint)", () => {
     expect(process.exitCode).toBe(2);
   });
 
+  it("exits 2 with a clean message instead of throwing when the file doesn't exist", () => {
+    const stderr = vi.spyOn(process.stderr, "write").mockImplementation(() => true);
+
+    expect(() => main(["validate", join(dir, "does-not-exist.hl7")])).not.toThrow();
+
+    expect(stderr).toHaveBeenCalledWith(expect.stringContaining("Could not read"));
+    expect(process.exitCode).toBe(2);
+  });
+
   it("validates a well-formed file and exits 0", () => {
     const inPath = join(dir, "valid.hl7");
     writeFileSync(inPath, VALID_HL7V2);

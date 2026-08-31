@@ -21,6 +21,9 @@ export interface WriteFailure {
   readonly status: number;
   readonly code: WriteFailureCode;
   readonly path: string;
+  /** Shape varies by failure source: a plain string message for a scope/network
+   * failure caught before any request was sent, or the server's parsed JSON response
+   * body (typically a FHIR `OperationOutcome`) for a request the server rejected. */
   readonly issues?: unknown;
 }
 

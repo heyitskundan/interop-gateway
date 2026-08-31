@@ -55,7 +55,8 @@ export const US_CORE_PROFILES: Readonly<Record<string, ProfileRule>> = {
     ],
   },
   Condition: {
-    profile: "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition-problems-health-concerns",
+    profile:
+      "http://hl7.org/fhir/us/core/StructureDefinition/us-core-condition-problems-health-concerns",
     required: [
       { path: "subject", description: "Condition.subject" },
       { path: "code", description: "Condition.code" },

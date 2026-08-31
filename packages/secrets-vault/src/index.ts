@@ -1,4 +1,9 @@
-import { enforceTls, GatewayError, type SecretRef, type SecretsProvider } from "@interop-gateway/core";
+import {
+  enforceTls,
+  GatewayError,
+  type SecretRef,
+  type SecretsProvider,
+} from "@interop-gateway/core";
 
 export type Fetcher = typeof fetch;
 

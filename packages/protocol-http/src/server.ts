@@ -72,10 +72,7 @@ export class HttpIngestServer {
       : undefined;
   }
 
-  private async handleRequest(
-    request: IncomingMessage,
-    response: ServerResponse,
-  ): Promise<void> {
+  private async handleRequest(request: IncomingMessage, response: ServerResponse): Promise<void> {
     if (this.options.path && request.url !== this.options.path) {
       response.writeHead(404).end();
       return;

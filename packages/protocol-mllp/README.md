@@ -44,6 +44,13 @@ await server.listen(2575);
 A handler that throws produces an `AE` ACK automatically — the connection stays open
 and the next message on it is still processed.
 
+Both `MllpServer` and `sendMllpMessage` are plain, unencrypted TCP (`node:net`) — MLLP
+itself has no built-in transport encryption, unlike this monorepo's `protocol-http`
+(`sendHttpMessage` requires `https://`). This matches how MLLP is used in practice:
+within a private network, or wrapped in a VPN/TLS tunnel (MLLPS) you provide — don't
+expose an `MllpServer` directly to an untrusted network, and don't `sendMllpMessage` to
+a host outside a trusted/tunneled network.
+
 ## Send
 
 ```js

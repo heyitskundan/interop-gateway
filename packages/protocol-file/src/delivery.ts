@@ -13,7 +13,10 @@ export interface FileDeliveryOptions {
  * file in the same directory first, then renames it into place, so a reader polling
  * the directory (e.g. `FileIngestWatcher` pointed at the same path elsewhere) never
  * sees a partially-written file. Throws `GatewayError` if the write or rename fails. */
-export async function writeFileMessage(content: string, options: FileDeliveryOptions): Promise<string> {
+export async function writeFileMessage(
+  content: string,
+  options: FileDeliveryOptions,
+): Promise<string> {
   const fileName = options.fileName ?? `${Date.now()}-${randomUUID()}.txt`;
   const finalPath = join(options.directory, fileName);
   const tempPath = join(options.directory, `.${fileName}.tmp`);

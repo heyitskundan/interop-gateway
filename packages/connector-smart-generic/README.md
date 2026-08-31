@@ -104,6 +104,21 @@ Pass a `secrets` option (any `@interop-gateway/core` `SecretsProvider`, e.g.
 `SmartClient` instances/process restarts, refreshed automatically once it's within 30
 seconds of expiry.
 
+## Lower-level exports
+
+`SmartClient` is built from three pieces also exported directly, for a consumer
+building a custom connector variant instead of using `SmartClient` as-is:
+
+- `fetchAccessToken(auth)` — runs the token exchange (`client_secret_post` or
+  `private_key_jwt`) standalone, without a `SmartClient` instance.
+- `TokenManager` — the caching/auto-refresh wrapper around `fetchAccessToken` that
+  `SmartClient` uses internally; reusable if you need token caching without the rest of
+  `SmartClient`'s scope-checked request surface.
+- `classifyWriteFailureStatus(status)` — the same HTTP-status-to-`WriteFailureCode`
+  mapping (`CONFLICT` for 409/412, `VALIDATION_FAILED` for 422, `REQUEST_FAILED`
+  otherwise) `create`/`update`/`delete` use internally, exposed for a caller writing
+  their own write path against a FHIR server.
+
 ## Testing against a sandbox
 
 Development and demos target the free, open sandboxes that don't require a vendor

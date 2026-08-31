@@ -128,8 +128,24 @@ describe("App", () => {
     await user.click(screen.getByRole("link", { name: "Packages" }));
     expect(screen.getByRole("heading", { name: "The 13 packages" })).toBeInTheDocument();
 
+    await user.click(screen.getByRole("link", { name: "MCP" }));
+    expect(screen.getByRole("heading", { name: "MCP server" })).toBeInTheDocument();
+
     await user.click(screen.getByRole("link", { name: "Changelog" }));
     expect(screen.getByRole("heading", { name: "Changelog" })).toBeInTheDocument();
+  });
+
+  it("shows both install paths and all three tools on the MCP page", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("radio", { name: "Docs" }));
+    await user.click(screen.getByRole("link", { name: "MCP" }));
+
+    const content = document.body.textContent ?? "";
+    expect(content).toContain("npx @interop-gateway/mcp-server");
+    expect(content).toContain("npm run build -w packages/mcp-server");
+    expect(content).toContain("translate");
+    expect(content).toContain("validateUsCore");
   });
 
   it("toggles dark mode", async () => {

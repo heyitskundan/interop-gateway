@@ -12,7 +12,8 @@ interface Variant {
   readonly code: string;
 }
 
-type Props = { readonly lang?: Lang; readonly code: string } | { readonly variants: readonly Variant[] };
+type Props =
+  { readonly lang?: Lang; readonly code: string } | { readonly variants: readonly Variant[] };
 
 const HIGHLIGHT: Record<Lang, ((code: string) => string) | undefined> = {
   js: highlightJs,
@@ -43,7 +44,8 @@ const LANG_LABEL: Partial<Record<Lang, string>> = {
  * `js` and `ts`) to render a tab strip that switches between them in place, instead of
  * stacking separate blocks for the same snippet. */
 export function CodeBlock(props: Props) {
-  const variants: readonly Variant[] = "variants" in props ? props.variants : [{ lang: props.lang ?? "text", code: props.code }];
+  const variants: readonly Variant[] =
+    "variants" in props ? props.variants : [{ lang: props.lang ?? "text", code: props.code }];
   const [active, setActive] = useState(0);
   const [copied, setCopied] = useState(false);
   const current = variants[Math.min(active, variants.length - 1)]!;
