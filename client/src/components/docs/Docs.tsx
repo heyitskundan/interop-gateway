@@ -1,10 +1,12 @@
 import { useCallback, useState } from "react";
+import { Advanced } from "./Advanced.js";
 import { ApiReference } from "./ApiReference.js";
 import { Changelog } from "./Changelog.js";
 import { GettingStarted } from "./GettingStarted.js";
 import { Mcp } from "./Mcp.js";
 import { Packages } from "./Packages.js";
 import {
+  advancedRail,
   apiReferenceRail,
   changelogRail,
   gettingStartedRail,
@@ -13,7 +15,7 @@ import {
   type RailItem,
 } from "./rails.js";
 
-type PageId = "getting-started" | "api-reference" | "packages" | "mcp" | "changelog";
+type PageId = "getting-started" | "api-reference" | "packages" | "mcp" | "advanced" | "changelog";
 
 const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
   {
@@ -23,6 +25,7 @@ const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
       { id: "api-reference", label: "API Reference" },
       { id: "packages", label: "Packages" },
       { id: "mcp", label: "MCP" },
+      { id: "advanced", label: "Advanced" },
     ],
   },
   { group: "Project", items: [{ id: "changelog", label: "Changelog" }] },
@@ -33,6 +36,7 @@ const RAILS: Record<PageId, RailItem[]> = {
   "api-reference": apiReferenceRail,
   packages: packagesRail,
   mcp: mcpRail,
+  advanced: advancedRail,
   changelog: changelogRail,
 };
 
@@ -100,6 +104,7 @@ export function Docs() {
         {page === "api-reference" && <ApiReference />}
         {page === "packages" && <Packages />}
         {page === "mcp" && <Mcp />}
+        {page === "advanced" && <Advanced />}
         {page === "changelog" && <Changelog />}
       </main>
 

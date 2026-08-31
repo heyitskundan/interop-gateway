@@ -39,6 +39,18 @@ export const packagesRail: RailItem[] = [
   { href: "#architecture", label: "How they fit together" },
 ];
 
+export const advancedRail: RailItem[] = [
+  { href: "#overview", label: "Overview" },
+  { href: "#envelope", label: "Envelopes and correlation IDs" },
+  { href: "#pipeline", label: "Composable pipelines" },
+  { href: "#storage", label: "Encrypted storage" },
+  { href: "#scope", label: "Scope enforcement" },
+  { href: "#tls", label: "TLS enforcement" },
+  { href: "#audit", label: "Tamper-evident audit log" },
+  { href: "#secrets-guard", label: "Raw-credential guard" },
+  { href: "#connector-internals", label: "connector-smart-generic internals" },
+];
+
 export const mcpRail: RailItem[] = [
   { href: "#overview", label: "Overview" },
   { href: "#install", label: "1. Install" },

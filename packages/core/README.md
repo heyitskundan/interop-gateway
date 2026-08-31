@@ -52,6 +52,21 @@ const result: StructuralValidationResult = gateway.validate(hl7v2Message);
   an entry containing a PHI-shaped value.
 - `SecretsProvider` — the interface every `secrets-*` package implements; `core` never
   stores a plaintext secret itself.
+- `createEnvelope()`/`withPayload()`/`Envelope` — wraps a payload with a correlation ID,
+  timestamp, and source label the moment it's ingested. `engine`/`mcp-server` use
+  `createEnvelope()` directly; `withPayload()` (swap the payload, keep the same
+  correlation ID) has no consumer in this monorepo yet.
+- `Pipeline`/`Stage` — the composable envelope-in/envelope-out chaining abstraction.
+  Exported and tested here, but no package uses it — `engine`'s pipeline is hand-rolled
+  sequential logic that predates it.
+- `InMemoryStore` — the reference `Store` implementation (used by tests and by anything
+  that hasn't wired a real backend), implementing `EncryptedStore`'s three-method
+  `Store` interface (`get`/`set`/`delete`) over a `Map`.
+- `deriveKey()` — derives the `CryptoKey` `EncryptedStore` needs, from a passphrase and
+  salt via PBKDF2 (100,000 iterations, SHA-256).
+- `assertNotRawCredential()` — throws if a string looks like a PEM private key or an AWS
+  access key ID, as a guard against passing a real secret somewhere only a
+  `SecretsProvider` reference belongs.
 - `validateStructural()` — the first-pass structural check (well-formed HL7v2/CDA) that
   runs before translation.
 

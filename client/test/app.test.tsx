@@ -131,6 +131,9 @@ describe("App", () => {
     await user.click(screen.getByRole("link", { name: "MCP" }));
     expect(screen.getByRole("heading", { name: "MCP server" })).toBeInTheDocument();
 
+    await user.click(screen.getByRole("link", { name: "Advanced" }));
+    expect(screen.getByRole("heading", { name: "Advanced" })).toBeInTheDocument();
+
     await user.click(screen.getByRole("link", { name: "Changelog" }));
     expect(screen.getByRole("heading", { name: "Changelog" })).toBeInTheDocument();
   });
@@ -146,6 +149,20 @@ describe("App", () => {
     expect(content).toContain("npm run build -w packages/mcp-server");
     expect(content).toContain("translate");
     expect(content).toContain("validateUsCore");
+  });
+
+  it("shows the core primitives and connector internals on the Advanced page", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("radio", { name: "Docs" }));
+    await user.click(screen.getByRole("link", { name: "Advanced" }));
+
+    const content = document.body.textContent ?? "";
+    expect(content).toContain("createEnvelope");
+    expect(content).toContain("EncryptedStore");
+    expect(content).toContain("HashChainedAuditLog");
+    expect(content).toContain("TokenManager");
+    expect(content).toContain("classifyWriteFailureStatus");
   });
 
   it("toggles dark mode", async () => {
