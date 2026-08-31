@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/format-hl7v2",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "HL7v2 <-> FHIR R4 format plugin for interop-gateway, wrapping the published hl7-fhir-translator package.",
   "keywords": [
     "hl7",
@@ -54,7 +54,7 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@interop-gateway/core": "0.1.0",
+    "@interop-gateway/core": "1.0.0",
     "hl7-fhir-translator": "^1.0.1"
   },
   "devDependencies": {

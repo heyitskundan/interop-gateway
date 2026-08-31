@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/engine",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Deployable pipeline runtime: wires a protocol source, a format translator, and a destination together from a YAML config.",
   "keywords": [
     "hl7",
@@ -57,12 +57,13 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@interop-gateway/core": "0.1.0",
-    "@interop-gateway/format-cda": "0.1.0",
-    "@interop-gateway/format-hl7v2": "0.1.0",
-    "@interop-gateway/protocol-file": "0.1.0",
-    "@interop-gateway/protocol-http": "0.1.0",
-    "@interop-gateway/protocol-mllp": "0.1.0",
+    "@interop-gateway/core": "1.0.0",
+    "@interop-gateway/format-cda": "1.0.0",
+    "@interop-gateway/format-hl7v2": "1.0.0",
+    "@interop-gateway/protocol-file": "1.0.0",
+    "@interop-gateway/protocol-http": "1.0.0",
+    "@interop-gateway/protocol-mllp": "1.0.0",
+    "@interop-gateway/validate-us-core": "1.0.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

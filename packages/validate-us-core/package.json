@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/validate-us-core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Required-element structural checks against a subset of US Core FHIR profiles.",
   "keywords": [
     "fhir",

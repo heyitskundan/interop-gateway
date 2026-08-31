@@ -33,9 +33,8 @@ export function Packages() {
         The 13 packages
       </h1>
       <p style={muted}>
-        Every package is independently installable and independently testable — nothing
-        here requires the whole monorepo. Grouped by what they actually do, not
-        alphabetically.
+        Every package is independently installable and independently testable — nothing here
+        requires the whole monorepo. Grouped by what they actually do, not alphabetically.
       </p>
 
       <h2 id="core" className="mt-8">
@@ -44,8 +43,8 @@ export function Packages() {
       <Pkg
         id="core-pkg"
         name="core"
-        summary="Pipeline engine — the interfaces everything else implements."
-        detail="Stage/Envelope interfaces, TLS enforcement guard, EncryptedStore (AES-256-GCM), ScopeSet enforcement, HashChainedAuditLog with PHI-shaped-value rejection, the SecretsProvider interface, structural HL7v2/CDA validation, and the InteropGateway translate()/validate() API."
+        summary="Shared interfaces and primitives — most now consumed by engine and mcp-server."
+        detail="TLS enforcement (enforceTls), EncryptedStore (AES-256-GCM), ScopeSet enforcement, the SecretsProvider interface, structural HL7v2/CDA validation, the InteropGateway translate()/validate() API (both directions), createEnvelope, and HashChainedAuditLog are all in real use by other packages today. Pipeline/Stage — the composable stage abstraction — is still exported and tested only in core's own suite; engine and mcp-server call createEnvelope/AuditSink.append directly rather than composing a Pipeline out of Stages. See docs/architecture.md's Identification section."
       />
 
       <h2 id="formats" className="mt-8">
@@ -125,7 +124,7 @@ export function Packages() {
         id="validate-us-core"
         name="validate-us-core"
         summary="Required-element structural checks for 15 US Core profiles."
-        detail="Covers the resource types the two translators can actually produce. Documented explicitly as this package's own reading of each profile's Must Support elements — not independently re-verified against fetched StructureDefinition JSON — with terminology binding entirely out of scope."
+        detail="Covers the resource types the two translators can actually produce. Documented explicitly as this package's own reading of each profile's Must Support elements — not independently re-verified against fetched StructureDefinition JSON — with terminology binding entirely out of scope. Wired into engine as the opt-in validateProfile: true pipeline config flag, and into mcp-server as its own validateUsCore tool; call it directly yourself for any other integration."
       />
 
       <h2 id="engine" className="mt-8">
@@ -135,7 +134,7 @@ export function Packages() {
         id="engine-pkg"
         name="engine"
         summary="YAML-configured pipeline runtime, with a CLI and a Dockerfile."
-        detail="Wires a protocol source (mllp/http/file), a format (hl7v2/cda), and a destination (http/file) together from one config file. A translation or delivery failure for one message reports through the source's own failure channel — an AE ACK, a 422, the error/ subdirectory — rather than stopping the pipeline."
+        detail="Wires a protocol source (mllp/http/file), a format (hl7v2/cda), and a destination (http/file) together from one config file. A translation or delivery failure for one message reports through the source's own failure channel — an AE ACK, a 422, the error/ subdirectory — prefixed with that message's correlation ID, rather than stopping the pipeline. Every message gets a correlationId (core's createEnvelope) and an audit entry (an injectable AuditSink, default HashChainedAuditLog) at each stage. validateProfile: true in PipelineConfig runs US Core validation before delivery, using the same failure channel."
       />
 
       <h2 id="mcp-server" className="mt-8">
@@ -144,37 +143,44 @@ export function Packages() {
       <Pkg
         id="mcp-server-pkg"
         name="mcp-server"
-        summary="MCP tool surface (translate, validate) over InteropGateway."
-        detail="Lets an MCP client — an AI assistant, an agent framework — translate HL7v2/C-CDA into FHIR or check structural well-formedness, without that client needing to know anything about either format."
+        summary="MCP tool surface (translate, validate, validateUsCore) over InteropGateway."
+        detail="Lets an MCP client — an AI assistant, an agent framework — translate HL7v2/C-CDA into FHIR, check structural well-formedness, or check US Core conformance, without that client needing to know anything about either format. Every call gets a correlationId and an audit entry, same mechanism as engine (an injectable AuditSink, default HashChainedAuditLog). See the MCP tab for the full setup steps (Claude Code, Claude Desktop, and generic stdio clients)."
       />
 
       <h2 id="architecture" className="mt-8">
         How they fit together
       </h2>
-      <p style={muted}>
-        Three independent axes, combined however a given deployment needs:
-      </p>
+      <p style={muted}>Three independent axes, combined however a given deployment needs:</p>
       <ul className="list-disc space-y-2 pl-5 text-sm" style={muted}>
         <li>
           <strong>What format is the data in</strong> — <code>format-hl7v2</code> or{" "}
-          <code>format-cda</code>, both registered on the same <code>InteropGateway</code>{" "}
-          instance if a deployment needs both.
+          <code>format-cda</code>, both registered on the same <code>InteropGateway</code> instance
+          if a deployment needs both.
         </li>
         <li>
           <strong>How does it arrive/leave</strong> — <code>protocol-mllp</code>,{" "}
-          <code>protocol-http</code>, or <code>protocol-file</code> for message-based
-          transport; <code>connector-smart-generic</code> for a live FHIR API instead.
+          <code>protocol-http</code>, or <code>protocol-file</code> for message-based transport;{" "}
+          <code>connector-smart-generic</code> for a live FHIR API instead.
         </li>
         <li>
-          <strong>Where do secrets live</strong> — <code>secrets-keychain</code> for local
-          dev, <code>secrets-vault</code>/<code>secrets-aws</code> for a real deployment.
+          <strong>Where do secrets live</strong> — <code>secrets-keychain</code> for local dev,{" "}
+          <code>secrets-vault</code>/<code>secrets-aws</code> for a real deployment.
         </li>
       </ul>
       <p style={muted}>
-        <code>engine</code> is the piece that actually wires the first two axes together
-        from a config file for a deployable service; <code>mcp-server</code> exposes just
-        the translation piece to an AI client; a custom Node script can compose any of
-        these directly, same as the demo above does.
+        <code>engine</code> is the piece that actually wires the first two axes together from a
+        config file for a deployable service; <code>mcp-server</code> exposes just the translation
+        piece to an AI client; a custom Node script can compose any of these directly, same as the
+        demo above does.
+      </p>
+      <p style={muted}>
+        Two things that used to sit disconnected from this picture are wired in now:{" "}
+        <code>validate-us-core</code> profile validation (opt-in in <code>engine</code> via{" "}
+        <code>validateProfile: true</code>, a standalone tool in <code>mcp-server</code>) and
+        per-message identification/audit logging (<code>core</code>'s <code>createEnvelope</code>/
+        <code>HashChainedAuditLog</code>, called by both). <code>core</code>'s <code>Pipeline</code>
+        /<code>Stage</code> composable-stage abstraction is the one piece still unused outside its
+        own test suite — see <code>docs/architecture.md</code> in the repo.
       </p>
     </div>
   );

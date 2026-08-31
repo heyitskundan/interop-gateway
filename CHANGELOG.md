@@ -1,5 +1,64 @@
 # Changelog
 
+## v1.0.0
+
+First tagged release. All 13 packages named in the README (`core`,
+`connector-smart-generic`, `protocol-mllp`, `protocol-http`, `protocol-file`,
+`format-hl7v2`, `format-cda`, `validate-us-core`, `secrets-keychain`, `secrets-vault`,
+`secrets-aws`, `engine`, `mcp-server`) plus the browser demo client build, typecheck,
+test, and lint clean. Every package's `version` field synced to `1.0.0`, including
+internal `@interop-gateway/*` cross-package dependency ranges.
+
+- **`core`** — `InteropGateway.translate()` supports both directions:
+  `{ from: FormatName, to: "fhir" }` (structural validation first, then
+  `plugin.toFhir()`) and `{ from: "fhir", to: FormatName }` (parses `input` as JSON,
+  throwing `GatewayError`/`FHIR_INPUT_INVALID` if it isn't valid JSON, then
+  `plugin.fromFhir()` — structural validation doesn't apply to FHIR input).
+  `TranslateOptions` is a discriminated union of the two directions, so an invalid
+  combination is a compile error, not a runtime one. `format-hl7v2` and `format-cda`'s
+  `FormatPlugin.fromFhir()` implementations needed no changes — `core` just wasn't
+  calling them yet.
+- **`engine`** — `PipelineConfig` has an opt-in `validateProfile: boolean` flag
+  (default `false`). When set, every translated Bundle is checked with
+  `validateUsCoreBundle()` before delivery; a failing result is routed to the same
+  failure channel a translation failure already uses (`error/` subdirectory, 422, `AE`
+  ACK), and delivery never runs. `runPipeline()` also takes an optional second argument,
+  `{ auditSink? }` (defaulting to a private `HashChainedAuditLog()`), and every message
+  gets a `correlationId` (via `core`'s `createEnvelope`) the moment it's ingested. An
+  audit entry is written at each stage (`translate`/`translate:rejected`,
+  `validateProfile:passed`/`validateProfile:rejected`, `deliver`/`deliver:rejected`),
+  and the same correlation ID is prefixed onto the message returned through the failure
+  channel (`[id] <message>`) so a failure surfaced to the sender's own system can be
+  matched back to its audit trail. `RunningPipeline` exposes the resolved `auditLog`.
+- **`mcp-server`** — new `validateUsCore` tool: takes a FHIR resource or Bundle (JSON
+  string, typically `translate`'s own output) and runs `validateUsCore`/
+  `validateUsCoreBundle` against it. `createInteropGatewayMcpServer()` takes an optional
+  `{ auditSink? }` (same default as `engine`), and `translate`/`validate`/
+  `validateUsCore` each write a correlated audit entry per call.
+- Package READMEs (`core`, `engine`, `mcp-server`, and the 10 others) document running
+  each CLI/MCP server from a local build, since none of the `@interop-gateway/*`
+  packages are published to npm yet — the same caveat is centralized in the root
+  README's Install section.
+- Docs site: added a `format-cda` code example to the API Reference (previously only
+  `format-hl7v2` had one), and the API Reference/Packages pages describe exactly which
+  pieces are wired in (`validate-us-core`, correlation IDs/audit logging) versus still
+  standalone. Client's public Changelog page brought current.
+- `SECURITY.md`/`README.md` corrected: previously claimed the package encrypts a
+  dead-letter queue at rest with a retention/purge policy — no dead-letter queue exists
+  in the codebase, and the audit log is in-memory by default, not persisted. Both docs
+  now state precisely what's a real default versus what a deployment wires up itself
+  (`EncryptedStore` is a shipped primitive, not automatically applied to anything).
+  `core/README.md`'s claim that `InteropGateway` would grow `connect()`/`read()`/
+  `write()`/`send()` methods was also removed — that functionality lives in
+  `connector-smart-generic`'s separate `SmartClient` class instead.
+- `core`'s `Pipeline`/`Stage` classes remain unused outside their own test suite — both
+  `engine` and `mcp-server` call `createEnvelope`/`AuditSink.append` directly rather
+  than composing a `Pipeline`, which was enough to wire in an audit trail without the
+  larger `Pipeline`/`Stage`-adoption refactor. See `docs/architecture.md`'s "Known
+  architectural debt" for what's still open: `translate()`'s discarded mapping trail,
+  no interactive demo for the connector/secrets/engine/mcp-server packages, and no npm
+  publish yet.
+
 ## v0.4.0
 
 Full plumbing coverage: every package named in the README's package table now exists

@@ -10,10 +10,9 @@ export interface FormatPlugin {
   fromFhir(bundle: unknown): string;
 }
 
-export interface TranslateOptions {
-  readonly from: FormatName;
-  readonly to: "fhir" | FormatName;
-}
+export type TranslateOptions =
+  | { readonly from: FormatName; readonly to: "fhir" }
+  | { readonly from: "fhir"; readonly to: FormatName };
 
 export interface InteropGatewayOptions {
   readonly formats?: readonly FormatPlugin[];
@@ -32,29 +31,39 @@ export class InteropGateway {
   }
 
   translate(input: string, options: TranslateOptions): unknown {
-    const structural = validateStructural(input);
-    if (!structural.valid) {
-      throw new GatewayError(
-        `Structural validation failed: ${structural.issues.join("; ")}`,
-        "STRUCTURAL_INVALID",
-      );
+    if (options.to === "fhir") {
+      const structural = validateStructural(input);
+      if (!structural.valid) {
+        throw new GatewayError(
+          `Structural validation failed: ${structural.issues.join("; ")}`,
+          "STRUCTURAL_INVALID",
+        );
+      }
+      return this.getPlugin(options.from).toFhir(input);
     }
 
-    const plugin = this.formats.get(options.from);
+    let bundle: unknown;
+    try {
+      bundle = JSON.parse(input);
+    } catch (cause) {
+      throw new GatewayError(
+        'translate() from "fhir" expects a FHIR resource/Bundle serialized as a JSON string; the input did not parse as JSON',
+        "FHIR_INPUT_INVALID",
+        undefined,
+        cause,
+      );
+    }
+    return this.getPlugin(options.to).fromFhir(bundle);
+  }
+
+  private getPlugin(name: FormatName): FormatPlugin {
+    const plugin = this.formats.get(name);
     if (!plugin) {
       throw new GatewayError(
-        `No format plugin registered for "${options.from}" — did you pass it in InteropGatewayOptions.formats?`,
+        `No format plugin registered for "${name}" — did you pass it in InteropGatewayOptions.formats?`,
         "FORMAT_NOT_REGISTERED",
       );
     }
-
-    if (options.to === "fhir") {
-      return plugin.toFhir(input);
-    }
-
-    throw new GatewayError(
-      `translate() only supports translating to "fhir" in this version; "${options.to}" is not yet wired up`,
-      "FORMAT_NOT_REGISTERED",
-    );
+    return plugin;
   }
 }

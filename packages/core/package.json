@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/core",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "Pipeline engine for interop-gateway: stage interfaces, correlation IDs, audit hook, secrets-provider interface, scope enforcement, encrypted persistence.",
   "keywords": [
     "fhir",

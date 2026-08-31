@@ -9,11 +9,12 @@ export function GettingStarted({ goPackages }: { goPackages: () => void }) {
         Getting Started
       </h1>
       <p style={muted}>
-        interop-gateway is a TypeScript SDK for two problems healthtech integrations
-        always hit separately: connecting to a live hospital system over SMART on FHIR,
-        and translating between old-style HL7v2/CDA messages and modern FHIR. One{" "}
-        <code>connect()</code>/<code>read()</code>/<code>write()</code>/<code>send()</code>/
-        <code>translate()</code>/<code>validate()</code> API instead of ten different
+        interop-gateway is a TypeScript SDK for two problems healthtech integrations always hit
+        separately: connecting to a live hospital system over SMART on FHIR, and translating between
+        old-style HL7v2/CDA messages and modern FHIR — <code>InteropGateway</code>'s{" "}
+        <code>translate()</code>/<code>validate()</code> for the format side,{" "}
+        <code>connector-smart-generic</code>'s <code>SmartClient</code> (<code>read()</code>/
+        <code>write()</code>/<code>search()</code>) for live connectivity, instead of ten different
         libraries. It is open source, Apache-2.0-licensed.
       </p>
 
@@ -21,27 +22,47 @@ export function GettingStarted({ goPackages }: { goPackages: () => void }) {
         Overview
       </h2>
       <p style={muted}>
-        The translation half wraps two separately-published, independently-tested
-        packages —{" "}
-        <a href="https://github.com/heyitskundan/hl7-fhir-translator" target="_blank" rel="noreferrer">
+        The translation half wraps two separately-published, independently-tested packages —{" "}
+        <a
+          href="https://github.com/heyitskundan/hl7-fhir-translator"
+          target="_blank"
+          rel="noreferrer"
+        >
           hl7-fhir-translator
         </a>{" "}
         and{" "}
-        <a href="https://github.com/heyitskundan/cda-fhir-translator" target="_blank" rel="noreferrer">
+        <a
+          href="https://github.com/heyitskundan/cda-fhir-translator"
+          target="_blank"
+          rel="noreferrer"
+        >
           cda-fhir-translator
         </a>{" "}
-        — as <code>FormatPlugin</code>s, rather than reimplementing either mapping
-        engine. The connectivity half is a vendor-agnostic SMART on FHIR client plus
-        protocol adapters (MLLP, HTTP, file-drop) that don't care which format is
-        travelling over them. See <a href="#" onClick={(e) => { e.preventDefault(); goPackages(); }}>Packages</a> for
-        what each of the 13 packages actually does.
+        — as <code>FormatPlugin</code>s, rather than reimplementing either mapping engine. The
+        connectivity half is a vendor-agnostic SMART on FHIR client plus protocol adapters (MLLP,
+        HTTP, file-drop) that don't care which format is travelling over them. See{" "}
+        <a
+          href="#"
+          onClick={(e) => {
+            e.preventDefault();
+            goPackages();
+          }}
+        >
+          Packages
+        </a>{" "}
+        for what each of the 13 packages actually does.
       </p>
 
       <h2 id="installation" className="mt-8">
         Installation
       </h2>
-      <p style={muted}>Install only the packages you need — this isn't an all-or-nothing framework.</p>
-      <CodeBlock lang="bash" code="npm install @interop-gateway/core @interop-gateway/format-hl7v2" />
+      <p style={muted}>
+        Install only the packages you need — this isn't an all-or-nothing framework.
+      </p>
+      <CodeBlock
+        lang="bash"
+        code="npm install @interop-gateway/core @interop-gateway/format-hl7v2"
+      />
 
       <h2 id="quickstart" className="mt-8">
         Quick start
@@ -70,8 +91,8 @@ const bundle = gateway.translate(hl7v2Message, options);`,
       />
       <p style={muted}>
         Swap in <code>formatCda</code> from <code>@interop-gateway/format-cda</code> and{" "}
-        <code>from: "cda"</code> for C-CDA XML — same call shape, same gateway instance can
-        hold both.
+        <code>from: "cda"</code> for C-CDA XML — same call shape, same gateway instance can hold
+        both.
       </p>
 
       <h2 id="phi" className="mt-8">
@@ -103,16 +124,19 @@ const bundle = gateway.translate(hl7v2Message, options);`,
             </strong>
           </div>
           <p className="mb-2 text-sm" style={muted}>
-            HIPAA/SOC 2 compliance is a property of an organization's overall
-            practices — risk assessments, signed BAAs with every vendor/hospital it
-            connects to, employee policies, and (for SOC 2) a third-party audit over
-            time. Using this library does not by itself make your deployment compliant.
+            HIPAA/SOC 2 compliance is a property of an organization's overall practices — risk
+            assessments, signed BAAs with every vendor/hospital it connects to, employee policies,
+            and (for SOC 2) a third-party audit over time. Using this library does not by itself
+            make your deployment compliant.
           </p>
           <p className="text-sm" style={muted}>
-            What the library does concretely: enforces TLS everywhere, encrypts
-            anything it persists (audit log, dead-letter queue, cached tokens), checks
-            SMART scopes before every read/write, never logs a PHI value (structural
-            shape and FHIR/HL7 paths only), and never stores a plaintext secret — see{" "}
+            What the library does concretely: enforces TLS everywhere, ships an encrypted-storage
+            primitive (<code>EncryptedStore</code>, AES-256-GCM) for anything a deployment chooses
+            to persist, writes a tamper-evident audit entry for every <code>engine</code>/
+            <code>mcp-server</code> call (in-memory by default — bring your own durable, encrypted{" "}
+            <code>AuditSink</code>), checks SMART scopes before every read/write, never logs a PHI
+            value (structural shape and FHIR/HL7 paths only), and never stores a plaintext secret —
+            see{" "}
             <a
               href="https://github.com/heyitskundan/interop-gateway/blob/main/SECURITY.md"
               target="_blank"
@@ -151,8 +175,8 @@ const bundle = gateway.translate(hl7v2Message, options);`,
             <td>Vault / AWS credentials</td>
             <td>Only if used</td>
             <td className="text-muted">
-              <code>secrets-vault</code>/<code>secrets-aws</code> are opt-in — the dev default
-              is <code>secrets-keychain</code> (OS keychain, no external service)
+              <code>secrets-vault</code>/<code>secrets-aws</code> are opt-in — the dev default is{" "}
+              <code>secrets-keychain</code> (OS keychain, no external service)
             </td>
           </tr>
         </tbody>

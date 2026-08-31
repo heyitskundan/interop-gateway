@@ -35,10 +35,14 @@ risk assessments, signed Business Associate Agreements with every vendor/hospita
 connects to, employee policies, and (for SOC 2) a third-party audit over time. Using this
 library does not by itself make your deployment compliant.
 
-What the library does concretely: enforces TLS everywhere, encrypts anything it persists
-(audit log, dead-letter queue, cached tokens), checks SMART scopes before every
-read/write, never logs a PHI value (structural/shape info and FHIR/HL7 paths only), and
-never stores a plaintext secret — see `SECURITY.md` for the full model.
+What the library does concretely: enforces TLS everywhere, ships `EncryptedStore`
+(AES-256-GCM) as the primitive for anything a deployment chooses to persist, writes a
+tamper-evident audit entry for every `engine`/`mcp-server` call (in-memory by default —
+pass your own `AuditSink` for durable, encrypted storage), checks SMART scopes before
+every read/write, never logs a PHI value (structural/shape info and FHIR/HL7 paths
+only), and never stores a plaintext secret — see `SECURITY.md` for the full model,
+including what's a real default versus what's a pluggable interface you still have to
+wire up yourself.
 
 ## Vendor access — this package is plumbing, not a permission broker
 
@@ -52,6 +56,21 @@ Health IT reference sandbox, Epic's open.epic) that don't require any of that.
 
 ## Install
 
+**Not yet published to npm** — every `@interop-gateway/*` scope 404s on the registry
+today. The commands below (and the same `npm install @interop-gateway/<package>` line
+in each package's own README) will work once publishing happens; until then, build
+from source:
+
+```bash
+git clone https://github.com/heyitskundan/interop-gateway.git
+cd interop-gateway
+npm install
+npm run build   # every package (dual ESM+CJS via tsup) + client
+```
+
+Then either `npm link` the package(s) you need into your own project, or work directly
+in this repo. Once published:
+
 ```bash
 npm install @interop-gateway/core @interop-gateway/format-hl7v2
 ```
@@ -64,7 +83,7 @@ import { InteropGateway } from "@interop-gateway/core";
 import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
-const bundle = await gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
 ```
 
 ```ts
@@ -74,7 +93,7 @@ import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
-const bundle = await gateway.translate(hl7v2Message, options);
+const bundle = gateway.translate(hl7v2Message, options);
 ```
 
 ## Working on this repo

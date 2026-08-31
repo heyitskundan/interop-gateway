@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { HashChainedAuditLog } from "@interop-gateway/core";
 import { sendMllpMessage } from "@interop-gateway/protocol-mllp";
 import { HttpIngestServer } from "@interop-gateway/protocol-http";
 import type { PipelineConfig } from "../src/config.js";
@@ -13,10 +14,21 @@ const SAMPLE_ADT_A01 =
   "PID|1||123456^^^MRN||Doe^Jane||19800101|F\r" +
   "PV1|1|I";
 
+// Same message with the PID-8 gender field blanked out — translates fine, but the
+// resulting Patient resource fails US Core's required "gender" element check.
+const SAMPLE_ADT_A01_MISSING_GENDER =
+  "MSH|^~\\&|SENDING_APP|SENDING_FAC|RECEIVING_APP|RECEIVING_FAC|20260101120000||ADT^A01|MSG00001|P|2.5\r" +
+  "EVN|A01|20260101120000\r" +
+  "PID|1||123456^^^MRN||Doe^Jane||19800101|\r" +
+  "PV1|1|I";
+
 let activePipeline: RunningPipeline | undefined;
 let activeDirs: string[] = [];
 
-async function waitFor(condition: () => Promise<boolean> | boolean, timeoutMs = 3000): Promise<void> {
+async function waitFor(
+  condition: () => Promise<boolean> | boolean,
+  timeoutMs = 3000,
+): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (await condition()) return;
@@ -191,5 +203,92 @@ describe("runPipeline (real transports, no mocking)", () => {
     expect(result.acknowledged).toBe(false);
     expect(result.code).toBe("AE");
     expect(await readdir(outboundDir)).toHaveLength(0);
+  });
+
+  it("writes a correlated audit entry for every message, success or failure", async () => {
+    const outboundDir = await mkdtemp(join(tmpdir(), "engine-out-"));
+    activeDirs = [outboundDir];
+    const auditSink = new HashChainedAuditLog();
+
+    const config: PipelineConfig = {
+      name: "test-audit",
+      format: "hl7v2",
+      source: { protocol: "http", port: 0 },
+      destination: { protocol: "file", directory: outboundDir },
+    };
+    activePipeline = await runPipeline(config, { auditSink });
+    const { port } = activePipeline.address!;
+
+    const okResponse = await fetch(`http://127.0.0.1:${port}`, {
+      method: "POST",
+      body: SAMPLE_ADT_A01,
+    });
+    const failResponse = await fetch(`http://127.0.0.1:${port}`, {
+      method: "POST",
+      body: "garbage",
+    });
+
+    expect(okResponse.status).toBe(200);
+    expect(failResponse.status).toBe(422);
+    expect(await failResponse.text()).toMatch(/^\[.+\] Structural validation failed/);
+
+    const entries = auditSink.list().map((record) => record.entry);
+    expect(entries.every((entry) => entry.who === "test-audit")).toBe(true);
+    expect(entries.map((entry) => entry.what)).toEqual([
+      "translate",
+      "deliver",
+      "translate:rejected",
+    ]);
+    // 3 entries, 2 requests: the ok request logs "translate" then "deliver" under the
+    // same correlation ID, the failed request logs one "translate:rejected".
+    expect(new Set(entries.map((entry) => entry.correlationId)).size).toBe(2);
+    expect(await auditSink.verify()).toBe(true);
+  });
+
+  it("validateProfile: true rejects a translated resource that fails US Core, routes it to error/ like a translation failure", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const outboundDir = await mkdtemp(join(tmpdir(), "engine-out-"));
+    activeDirs = [inboundDir, outboundDir];
+    const auditSink = new HashChainedAuditLog();
+
+    const config: PipelineConfig = {
+      name: "test-validate-profile",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      destination: { protocol: "file", directory: outboundDir },
+      validateProfile: true,
+    };
+    activePipeline = await runPipeline(config, { auditSink });
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01_MISSING_GENDER);
+    await waitFor(() => fileExists(join(inboundDir, "error", "adt.hl7")));
+
+    expect(await readdir(outboundDir)).toHaveLength(0);
+    const errorSidecar = await readFile(join(inboundDir, "error", "adt.hl7.error.txt"), "utf8");
+    expect(errorSidecar).toMatch(/US Core validation failed/);
+    expect(errorSidecar).toMatch(/Patient/);
+
+    const what = auditSink.list().map((record) => record.entry.what);
+    expect(what).toEqual(["translate", "validateProfile:rejected"]);
+  });
+
+  it("validateProfile: true delivers a resource that passes US Core", async () => {
+    const inboundDir = await mkdtemp(join(tmpdir(), "engine-in-"));
+    const outboundDir = await mkdtemp(join(tmpdir(), "engine-out-"));
+    activeDirs = [inboundDir, outboundDir];
+
+    const config: PipelineConfig = {
+      name: "test-validate-profile-pass",
+      format: "hl7v2",
+      source: { protocol: "file", directory: inboundDir, pollIntervalMs: 30 },
+      destination: { protocol: "file", directory: outboundDir },
+      validateProfile: true,
+    };
+    activePipeline = await runPipeline(config);
+
+    await writeFile(join(inboundDir, "adt.hl7"), SAMPLE_ADT_A01);
+    await waitFor(() => fileExists(join(inboundDir, "processed", "adt.hl7")));
+
+    expect(await readdir(outboundDir)).toHaveLength(1);
   });
 });

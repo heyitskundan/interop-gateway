@@ -39,7 +39,17 @@ export const packagesRail: RailItem[] = [
   { href: "#architecture", label: "How they fit together" },
 ];
 
+export const mcpRail: RailItem[] = [
+  { href: "#overview", label: "Overview" },
+  { href: "#install", label: "1. Install" },
+  { href: "#local", label: "2. Building from source" },
+  { href: "#tools", label: "3. Tools" },
+  { href: "#audit", label: "4. Correlation IDs and audit logging" },
+  { href: "#programmatic", label: "5. Embed programmatically" },
+];
+
 export const changelogRail: RailItem[] = [
+  { href: "#v1-0-0", label: "v1.0.0" },
   { href: "#v0-4-0", label: "v0.4.0" },
   { href: "#v0-3-0", label: "v0.3.0" },
   { href: "#v0-2-0", label: "v0.2.0" },

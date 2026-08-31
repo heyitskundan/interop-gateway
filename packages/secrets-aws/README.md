@@ -8,6 +8,9 @@ SDK, to keep this package's dependency footprint small.
 
 ## Install
 
+Not yet published to npm — see the [root README](../../README.md#install) for building
+from source until then.
+
 ```bash
 npm install @interop-gateway/secrets-aws
 ```

@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/secrets-keychain",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "SecretsProvider implementation backed by the local OS keychain (macOS Keychain, Linux Secret Service). Development default — production deployments should use secrets-vault or secrets-aws.",
   "keywords": [
     "fhir",
@@ -52,7 +52,7 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@interop-gateway/core": "0.1.0"
+    "@interop-gateway/core": "1.0.0"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

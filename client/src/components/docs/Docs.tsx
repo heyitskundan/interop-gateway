@@ -2,16 +2,18 @@ import { useCallback, useState } from "react";
 import { ApiReference } from "./ApiReference.js";
 import { Changelog } from "./Changelog.js";
 import { GettingStarted } from "./GettingStarted.js";
+import { Mcp } from "./Mcp.js";
 import { Packages } from "./Packages.js";
 import {
   apiReferenceRail,
   changelogRail,
   gettingStartedRail,
+  mcpRail,
   packagesRail,
   type RailItem,
 } from "./rails.js";
 
-type PageId = "getting-started" | "api-reference" | "packages" | "changelog";
+type PageId = "getting-started" | "api-reference" | "packages" | "mcp" | "changelog";
 
 const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
   {
@@ -20,6 +22,7 @@ const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
       { id: "getting-started", label: "Getting Started" },
       { id: "api-reference", label: "API Reference" },
       { id: "packages", label: "Packages" },
+      { id: "mcp", label: "MCP" },
     ],
   },
   { group: "Project", items: [{ id: "changelog", label: "Changelog" }] },
@@ -29,6 +32,7 @@ const RAILS: Record<PageId, RailItem[]> = {
   "getting-started": gettingStartedRail,
   "api-reference": apiReferenceRail,
   packages: packagesRail,
+  mcp: mcpRail,
   changelog: changelogRail,
 };
 
@@ -95,6 +99,7 @@ export function Docs() {
         {page === "getting-started" && <GettingStarted goPackages={() => goTo("packages")} />}
         {page === "api-reference" && <ApiReference />}
         {page === "packages" && <Packages />}
+        {page === "mcp" && <Mcp />}
         {page === "changelog" && <Changelog />}
       </main>
 

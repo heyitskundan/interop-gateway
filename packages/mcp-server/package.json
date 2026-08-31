@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/mcp-server",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "MCP tool surface over interop-gateway's translate/validate API.",
   "keywords": [
     "mcp",
@@ -57,9 +57,10 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@interop-gateway/core": "0.1.0",
-    "@interop-gateway/format-cda": "0.1.0",
-    "@interop-gateway/format-hl7v2": "0.1.0",
+    "@interop-gateway/core": "1.0.0",
+    "@interop-gateway/format-cda": "1.0.0",
+    "@interop-gateway/format-hl7v2": "1.0.0",
+    "@interop-gateway/validate-us-core": "1.0.0",
     "@modelcontextprotocol/sdk": "^1.30.0",
     "zod": "^4.0.0"
   },

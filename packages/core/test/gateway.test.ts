@@ -30,6 +30,56 @@ describe("InteropGateway.translate", () => {
       /No format plugin registered for "hl7v2"/,
     );
   });
+
+  it("routes to the matching format plugin's fromFhir() for the fhir -> X direction", () => {
+    const gateway = new InteropGateway({ formats: [fakeHl7v2Plugin] });
+    const result = gateway.translate(JSON.stringify({ resourceType: "Bundle" }), {
+      from: "fhir",
+      to: "hl7v2",
+    });
+    expect(result).toBe("MSH|^~\\&|...");
+  });
+
+  it("passes the parsed FHIR object, not the raw string, to fromFhir()", () => {
+    let received: unknown;
+    const spyPlugin: FormatPlugin = {
+      ...fakeHl7v2Plugin,
+      fromFhir: (bundle) => {
+        received = bundle;
+        return "MSH|^~\\&|...";
+      },
+    };
+    const gateway = new InteropGateway({ formats: [spyPlugin] });
+    gateway.translate(JSON.stringify({ resourceType: "Bundle", id: "abc" }), {
+      from: "fhir",
+      to: "hl7v2",
+    });
+    expect(received).toEqual({ resourceType: "Bundle", id: "abc" });
+  });
+
+  it("throws a clear error when the fhir -> X input is not valid JSON", () => {
+    const gateway = new InteropGateway({ formats: [fakeHl7v2Plugin] });
+    expect(() => gateway.translate("not json", { from: "fhir", to: "hl7v2" })).toThrow(
+      /expects a FHIR resource\/Bundle serialized as a JSON string/,
+    );
+  });
+
+  it("does not run structural validation on the fhir -> X direction", () => {
+    const gateway = new InteropGateway({ formats: [fakeHl7v2Plugin] });
+    expect(() =>
+      gateway.translate(JSON.stringify({ resourceType: "Bundle" }), {
+        from: "fhir",
+        to: "hl7v2",
+      }),
+    ).not.toThrow();
+  });
+
+  it("throws a clear error when no plugin is registered for the fhir -> X target format", () => {
+    const gateway = new InteropGateway({ formats: [] });
+    expect(() =>
+      gateway.translate(JSON.stringify({ resourceType: "Bundle" }), { from: "fhir", to: "hl7v2" }),
+    ).toThrow(/No format plugin registered for "hl7v2"/);
+  });
 });
 
 describe("InteropGateway.validate", () => {

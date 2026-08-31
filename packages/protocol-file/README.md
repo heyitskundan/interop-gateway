@@ -16,6 +16,9 @@ its own SSH/SFTP dependency.
 
 ## Install
 
+Not yet published to npm — see the [root README](../../README.md#install) for building
+from source until then.
+
 ```bash
 npm install @interop-gateway/protocol-file
 ```

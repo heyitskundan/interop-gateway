@@ -35,7 +35,7 @@ export function App() {
         style={{ background: "var(--color-bg)", borderBottom: "1px solid var(--color-divider)" }}
       >
         <span className="nav-brand">interop-gateway</span>
-        <span className="tag tag-neutral">v0.4.0</span>
+        <span className="tag tag-neutral">v1.0.0</span>
 
         <div className="seg" role="radiogroup" aria-label="Section">
           <label className="seg-opt">

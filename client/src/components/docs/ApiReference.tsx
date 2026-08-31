@@ -8,8 +8,8 @@ export function ApiReference() {
       <h1 className="mb-2">API Reference</h1>
       <p style={muted}>
         The surface below is spread across the 13 packages — see{" "}
-        <code>@interop-gateway/&lt;package&gt;</code> in each import. Full signatures ship
-        as <code>.d.ts</code> for both ESM and CJS builds.
+        <code>@interop-gateway/&lt;package&gt;</code> in each import. Full signatures ship as{" "}
+        <code>.d.ts</code> for both ESM and CJS builds.
       </p>
 
       <h2 id="core" className="mt-8">
@@ -17,16 +17,23 @@ export function ApiReference() {
       </h2>
       <p style={muted}>
         <code>@interop-gateway/core</code> — registers format plugins and exposes{" "}
-        <code>translate()</code>/<code>validate()</code>. <code>translate()</code> runs a
-        structural check first (well-formed HL7v2/C-CDA) and throws{" "}
-        <code>GatewayError</code> before ever touching a format plugin if that check fails.
+        <code>translate()</code>/<code>validate()</code>, both directions. For{" "}
+        <code>{'{ from: FormatName, to: "fhir" }'}</code>, <code>translate()</code> runs a
+        structural check first (well-formed HL7v2/C-CDA) and throws <code>GatewayError</code> before
+        ever touching a format plugin if that check fails. For{" "}
+        <code>{'{ from: "fhir", to: FormatName }'}</code>, it parses <code>input</code> as JSON
+        instead (throwing <code>GatewayError</code> with code <code>FHIR_INPUT_INVALID</code> if it
+        isn't valid JSON) — structural validation doesn't apply to FHIR input.
       </p>
       <CodeBlock
         lang="ts"
         code={`class InteropGateway {
   constructor(options: { formats?: FormatPlugin[] });
   validate(input: string): StructuralValidationResult;
-  translate(input: string, options: { from: FormatName; to: "fhir" }): unknown;
+  translate(
+    input: string,
+    options: { from: FormatName; to: "fhir" } | { from: "fhir"; to: FormatName },
+  ): unknown;
 }
 
 interface FormatPlugin {
@@ -40,33 +47,96 @@ interface FormatPlugin {
         Format plugins
       </h2>
       <p style={muted}>
-        <code>@interop-gateway/format-hl7v2</code> and <code>@interop-gateway/format-cda</code>{" "}
-        each wrap a separately-published translator (<code>hl7-fhir-translator</code>,{" "}
+        <code>@interop-gateway/format-hl7v2</code> and <code>@interop-gateway/format-cda</code> each
+        wrap a separately-published translator (<code>hl7-fhir-translator</code>,{" "}
         <code>cda-fhir-translator</code>) and normalize its errors to <code>GatewayError</code>.
-        Both also export their own richer <code>translateToFhir</code>/<code>translateFromFhir</code>{" "}
-        functions directly, returning the underlying package's field-level mapping trail —{" "}
-        <code>InteropGateway.translate()</code> discards that trail for a uniform return
-        type; call these directly if you need it (this demo's own Translator tab does).
+        Both also export their own richer <code>translateToFhir</code>/
+        <code>translateFromFhir</code> functions directly, returning the underlying package's
+        field-level mapping trail — <code>InteropGateway.translate()</code> discards that trail for
+        a uniform return type; call these directly if you need it (this demo's own Translator tab
+        does).
+      </p>
+      <p className="text-sm font-medium mt-4 mb-1">format-hl7v2</p>
+      <CodeBlock
+        variants={[
+          {
+            lang: "js",
+            code: `import { translateToFhir, translateFromFhir } from "@interop-gateway/format-hl7v2";
+
+const result = translateToFhir(rawHl7v2Message);
+result.translated;  // FHIR Bundle, JSON string
+result.mappings;     // [{ source, target, value, note? }, ...]
+result.warnings;     // string[] — segments/fields with no mapping
+
+const back = translateFromFhir(result.translated);
+back.translated;     // HL7v2 message string
+back.mappings;
+back.warnings;`,
+          },
+          {
+            lang: "ts",
+            code: `import {
+  translateToFhir,
+  translateFromFhir,
+  type TranslationResult,
+} from "@interop-gateway/format-hl7v2";
+
+const result: TranslationResult = translateToFhir(rawHl7v2Message);
+result.translated;  // FHIR Bundle, JSON string
+result.mappings;     // [{ source, target, value, note? }, ...]
+result.warnings;     // string[] — segments/fields with no mapping
+
+const back: TranslationResult = translateFromFhir(result.translated);
+back.translated;     // HL7v2 message string
+back.mappings;
+back.warnings;`,
+          },
+        ]}
+      />
+
+      <p className="text-sm font-medium mt-4 mb-1">format-cda</p>
+      <p style={muted} className="text-sm mb-2">
+        Different result shape — <code>bundle</code>/<code>xml</code> instead of a unified{" "}
+        <code>translated</code> string, and <code>mappings</code>/<code>warnings</code> entries
+        carry different fields (<code>cdaPath</code>/<code>fhirPath</code>/<code>resourceType</code>
+        , <code>path</code>/<code>message</code>). This demo's own <code>client/src/api.ts</code>{" "}
+        normalizes both packages' shapes into one display type — the two packages themselves don't
+        share a result type.
       </p>
       <CodeBlock
         variants={[
           {
             lang: "js",
-            code: `import { translateToFhir } from "@interop-gateway/format-hl7v2";
+            code: `import { translateToFhir, translateFromFhir } from "@interop-gateway/format-cda";
 
-const result = translateToFhir(rawHl7v2Message);
-result.translated;  // FHIR Bundle, JSON string
-result.mappings;     // [{ source, target, value, note? }, ...]
-result.warnings;     // string[] — segments/fields with no mapping`,
+const result = translateToFhir(rawCdaXml);
+result.bundle;    // FHIR Bundle (JSON object, not a string)
+result.mappings;  // [{ cdaPath, fhirPath, resourceType }, ...]
+result.warnings;  // [{ path, message }, ...]
+
+const back = translateFromFhir(result.bundle);
+back.xml;         // C-CDA XML string
+back.mappings;
+back.warnings;`,
           },
           {
             lang: "ts",
-            code: `import { translateToFhir, type TranslationResult } from "@interop-gateway/format-hl7v2";
+            code: `import {
+  translateToFhir,
+  translateFromFhir,
+  type TranslateResult,
+  type TranslateToCdaResult,
+} from "@interop-gateway/format-cda";
 
-const result: TranslationResult = translateToFhir(rawHl7v2Message);
-result.translated;  // FHIR Bundle, JSON string
-result.mappings;     // [{ source, target, value, note? }, ...]
-result.warnings;     // string[] — segments/fields with no mapping`,
+const result: TranslateResult = translateToFhir(rawCdaXml);
+result.bundle;    // FHIR Bundle (JSON object, not a string)
+result.mappings;  // [{ cdaPath, fhirPath, resourceType }, ...]
+result.warnings;  // [{ path, message }, ...]
+
+const back: TranslateToCdaResult = translateFromFhir(result.bundle);
+back.xml;         // C-CDA XML string
+back.mappings;
+back.warnings;`,
           },
         ]}
       />
@@ -75,8 +145,8 @@ result.warnings;     // string[] — segments/fields with no mapping`,
         Protocol adapters
       </h2>
       <p style={muted}>
-        Three transports, each with a receive side and a send side. None of them know
-        what format is travelling over them.
+        Three transports, each with a receive side and a send side. None of them know what format is
+        travelling over them.
       </p>
       <CodeBlock
         lang="ts"
@@ -98,10 +168,10 @@ function writeFileMessage(content, { directory, fileName? }): Promise<string>; /
         SMART on FHIR connector
       </h2>
       <p style={muted}>
-        <code>@interop-gateway/connector-smart-generic</code> — OAuth2 client-credentials
-        (<code>client_secret_post</code>) or backend-services (<code>private_key_jwt</code>,
-        JWT assertion signed with <code>jose</code>), scope-checked read/search/write against
-        a FHIR R4 server. TLS-enforced on every call.
+        <code>@interop-gateway/connector-smart-generic</code> — OAuth2 client-credentials (
+        <code>client_secret_post</code>) or backend-services (<code>private_key_jwt</code>, JWT
+        assertion signed with <code>jose</code>), scope-checked read/search/write against a FHIR R4
+        server. TLS-enforced on every call.
       </p>
       <CodeBlock
         variants={[
@@ -159,9 +229,13 @@ new AwsSecretsManagerProvider({ region, credentials })  // from secrets-aws — 
         US Core validation
       </h2>
       <p style={muted}>
-        <code>@interop-gateway/validate-us-core</code> — required-element checks for 15
-        resource types. Structural only, not a terminology-binding validator — see the
-        package's own README for exactly what's covered.
+        <code>@interop-gateway/validate-us-core</code> — required-element checks for 15 resource
+        types. Structural only, not a terminology-binding validator — see the package's own README
+        for exactly what's covered. <code>InteropGateway.translate()</code> itself still doesn't
+        call it — call it directly on <code>translate()</code>'s output, same as below — but{" "}
+        <code>engine</code>'s pipeline runs it automatically when <code>validateProfile: true</code>{" "}
+        is set in <code>PipelineConfig</code>, and <code>mcp-server</code> exposes it as its own{" "}
+        <code>validateUsCore</code> tool.
       </p>
       <CodeBlock
         variants={[
@@ -232,7 +306,12 @@ result.issues;    // string[]`,
       <h2 id="cli" className="mt-8">
         CLI reference
       </h2>
-      <p style={muted}>Three separate binaries, one per concern:</p>
+      <p style={muted}>
+        Three separate binaries, one per concern. Running against an unreleased change instead of
+        the published package? Build it from source (
+        <code>npm run build -w packages/&lt;package&gt;</code>) and invoke{" "}
+        <code>node packages/&lt;package&gt;/dist/cli.js</code> in place of the bare command below.
+      </p>
       <CodeBlock
         lang="bash"
         code={`interop-gateway validate <file>            # from @interop-gateway/core — structural check only

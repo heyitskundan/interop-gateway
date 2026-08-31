@@ -1,1 +1,4 @@
-export { createInteropGatewayMcpServer } from "./server.js";
+export {
+  createInteropGatewayMcpServer,
+  type CreateInteropGatewayMcpServerOptions,
+} from "./server.js";

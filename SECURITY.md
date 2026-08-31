@@ -2,8 +2,9 @@
 
 ## Supported versions
 
-This package is pre-1.0 (`0.x`). Security fixes land on the latest published version of
-each affected package; older `0.x` versions are not separately patched.
+Security fixes land on the latest tagged version (currently `1.x`); older versions are
+not separately patched. This package is not yet published to npm — see the root
+[README](./README.md) for building from source.
 
 ## Reporting a vulnerability
 
@@ -38,17 +39,33 @@ these rules everywhere:
   never stored, logged, or included in error output by `packages/core` or any connector —
   they're handled exclusively through the pluggable `SecretsProvider` interface (OS
   keychain for dev, Vault/AWS Secrets Manager for production).
-- **Encryption everywhere PHI could land.** TLS is enforced (and downgrades rejected) on
-  every outbound connection; anything the package persists (audit log, dead-letter queue,
-  cached tokens) is encrypted at rest.
+- **Encryption in transit, always.** TLS is enforced (and downgrades rejected) on every
+  outbound connection — the SMART connector, `sendHttpMessage`, and every `secrets-*`
+  provider's network calls all route through the same `enforceTls()` check.
+- **Encryption at rest is a primitive the package ships, not a default it enforces for
+  you.** `core` exports `EncryptedStore` (AES-256-GCM over any key/value `Store`) for
+  anything a deployment chooses to persist. Concretely today: `engine` and `mcp-server`
+  write per-message/per-call audit entries (tamper-evident, hash-chained, PHI-shaped
+  values rejected — see `HashChainedAuditLog`) to an injectable `AuditSink`, which
+  defaults to an **in-memory** instance that is lost on restart and not encrypted at
+  rest, because there's nothing on disk to encrypt. If your deployment needs a durable
+  audit trail, implement `AuditSink` (one method, `append()`) backed by `EncryptedStore`
+  or your own encrypted store, and pass it to `runPipeline()`/
+  `createInteropGatewayMcpServer()`. **There is no built-in dead-letter queue.** The
+  closest thing that exists is `protocol-file`'s `FileIngestWatcher`, which moves a
+  failed message to a plain (unencrypted by the package) `error/` subdirectory with an
+  error sidecar — encrypting that at rest is the deploying organization's
+  responsibility (e.g. an encrypted volume), same as any other file the OS writes.
 - **Scope enforcement, not just trust-the-token.** Every `read()`/`write()` call is
   checked against the current token's granted SMART scopes before any network call is
   made.
 - **Minimum necessary.** `read()`/`search()` require an explicit scope — there is no
   "fetch everything" default.
-- **No silent persistence.** Nothing survives past a single pipeline run except the
-  dead-letter queue and audit log, both encrypted at rest with a configurable
-  retention/purge policy.
+- **No retention/purge policy shipped.** The package doesn't cache PHI beyond a single
+  pipeline run by default, but it also doesn't manage retention or purging of anything
+  a deployment chooses to persist (a custom `AuditSink`, `FileIngestWatcher`'s
+  `error/` directory) — that's a deployment-level policy decision, not something this
+  package enforces today.
 - **This package alone does not make a system HIPAA- or SOC 2-compliant.** The deploying
   organization is still responsible for its own risk assessment, a signed Business
   Associate Agreement with each hospital/vendor it connects to, and its own access

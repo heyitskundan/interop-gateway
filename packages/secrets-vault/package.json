@@ -1,6 +1,6 @@
 {
   "name": "@interop-gateway/secrets-vault",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "SecretsProvider backed by a HashiCorp Vault KV v2 secrets engine.",
   "keywords": [
     "vault",
@@ -53,7 +53,7 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "@interop-gateway/core": "0.1.0"
+    "@interop-gateway/core": "1.0.0"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

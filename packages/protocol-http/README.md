@@ -6,6 +6,9 @@ endpoint with TLS enforced and automatic retry.
 
 ## Install
 
+Not yet published to npm — see the [root README](../../README.md#install) for building
+from source until then.
+
 ```bash
 npm install @interop-gateway/protocol-http
 ```
@@ -29,8 +32,7 @@ await server.listen(8080);
 load balancer in front of it in production, the same deployment pattern most HL7v2/FHIR
 webhook receivers already use. A handler that throws produces a 500 with the error
 message as the body; requests over `maxBodyBytes` (default 10MB) also produce a 500. A
-`path` filter is optional — omit it to accept POSTs on any path. Non-POST requests get a
-405.
+`path` filter is optional — omit it to accept POSTs on any path. Non-POST requests get a 405.
 
 ## Send
 

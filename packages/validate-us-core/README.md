@@ -33,6 +33,9 @@ Check `supported` to tell the two cases apart.
 
 ## Install
 
+Not yet published to npm — see the [root README](../../README.md#install) for building
+from source until then.
+
 ```bash
 npm install @interop-gateway/validate-us-core
 ```

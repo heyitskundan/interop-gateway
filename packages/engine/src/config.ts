@@ -38,6 +38,14 @@ export interface PipelineConfig {
   readonly format: "hl7v2" | "cda";
   readonly source: SourceConfig;
   readonly destination: DestinationConfig;
+  /** When `true`, every translated FHIR Bundle is checked against
+   * `@interop-gateway/validate-us-core` before delivery — a resource that fails
+   * US Core's required-element checks is routed to the same failure channel a
+   * translation failure already uses (an `AE` ACK, a 422, the `error/` subdirectory),
+   * and delivery never runs. Defaults to `false`: structural validation (well-formed
+   * HL7v2/C-CDA) always runs inside `translate()` regardless of this flag; profile
+   * validation is opt-in since not every deployment targets US Core. */
+  readonly validateProfile?: boolean;
 }
 
 function fail(message: string): never {
@@ -45,7 +53,8 @@ function fail(message: string): never {
 }
 
 function requireString(value: unknown, field: string): string {
-  if (typeof value !== "string" || value.length === 0) fail(`"${field}" must be a non-empty string`);
+  if (typeof value !== "string" || value.length === 0)
+    fail(`"${field}" must be a non-empty string`);
   return value;
 }
 
@@ -76,11 +85,12 @@ function parseSource(raw: unknown): SourceConfig {
     return {
       protocol: "file",
       directory: requireString(source.directory, "source.directory"),
-      pollIntervalMs:
-        typeof source.pollIntervalMs === "number" ? source.pollIntervalMs : undefined,
+      pollIntervalMs: typeof source.pollIntervalMs === "number" ? source.pollIntervalMs : undefined,
     };
   }
-  fail(`"source.protocol" must be one of "mllp", "http", "file" (got ${JSON.stringify(source.protocol)})`);
+  fail(
+    `"source.protocol" must be one of "mllp", "http", "file" (got ${JSON.stringify(source.protocol)})`,
+  );
 }
 
 function parseDestination(raw: unknown): DestinationConfig {
@@ -124,10 +134,15 @@ export function loadPipelineConfig(yamlText: string): PipelineConfig {
     fail(`"format" must be "hl7v2" or "cda" (got ${JSON.stringify(doc.format)})`);
   }
 
+  if (doc.validateProfile !== undefined && typeof doc.validateProfile !== "boolean") {
+    fail('"validateProfile" must be a boolean');
+  }
+
   return {
     name,
     format: doc.format,
     source: parseSource(doc.source),
     destination: parseDestination(doc.destination),
+    ...(typeof doc.validateProfile === "boolean" ? { validateProfile: doc.validateProfile } : {}),
   };
 }
