@@ -55,7 +55,7 @@ export interface PipelineConfig {
    * failure), so include a catch-all rule (no `when`) last if you want one. */
   readonly routes?: readonly RouteRule[];
   /** When `true`, every translated FHIR Bundle is checked against
-   * `@interop-gateway/validate-us-core` before delivery — a resource that fails
+   * `@interop-gateway/core`'s `validateUsCoreBundle` before delivery — a resource that fails
    * US Core's required-element checks is routed to the same failure channel a
    * translation failure already uses (an `AE` ACK, a 422, the `error/` subdirectory),
    * and delivery never runs. Defaults to `false`: structural validation (well-formed

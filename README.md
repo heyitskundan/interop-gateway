@@ -1,32 +1,24 @@
 # interop-gateway
 
-A single TypeScript SDK for two problems healthtech integrations always hit separately:
+A TypeScript SDK for two problems healthtech integrations always hit separately:
 connecting to a live hospital system over SMART on FHIR, and translating between
 old-style HL7v2/CDA messages and modern FHIR — `InteropGateway`'s `translate()`/
-`validate()` for the format side, `connector-smart-generic`'s `SmartClient`
-(`read()`/`write()`/`search()`) for live connectivity, instead of ten different
-libraries for auth, format parsing, and delivery.
+`validate()` for the format side, `SmartClient`'s `read()`/`write()`/`search()` for live
+connectivity, instead of ten different libraries for auth, format parsing, and delivery.
 
-See [`docs/architecture.md`](./docs/architecture.md) for the package graph, data flow,
-and security model as actually built.
+Six packages, each independently installable, with real npm `dependencies` declared
+between them wherever one genuinely needs another — install only what you need.
+Installing `@interop-gateway/core` alone never pulls in the MCP SDK, Vault client, or
+AWS SDK:
 
-## Packages
-
-| Package                                    | What it does                                                                                                                                                                                |
-| ------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `@interop-gateway/core`                    | Shared primitives — correlation IDs, audit log, encrypted storage, secrets-provider interface, scope enforcement, TLS enforcement                                                           |
-| `@interop-gateway/connector-smart-generic` | Vendor-agnostic SMART on FHIR connector — backend-services (`client_secret_post`, `private_key_jwt`) and interactive `authorization_code`+PKCE auth, read/write/search, Bulk Data `$export` |
-| `@interop-gateway/protocol-mllp`           | MLLP receive + send with ACK/NACK                                                                                                                                                           |
-| `@interop-gateway/protocol-http`           | HTTP ingest/delivery adapter                                                                                                                                                                |
-| `@interop-gateway/protocol-file`           | File/SFTP ingest/delivery adapter                                                                                                                                                           |
-| `@interop-gateway/format-hl7v2`            | HL7v2 ↔ FHIR, wrapping [`hl7-fhir-translator`](https://github.com/heyitskundan/hl7-fhir-translator)                                                                                         |
-| `@interop-gateway/format-cda`              | C-CDA ↔ FHIR, wrapping [`cda-fhir-translator`](https://github.com/heyitskundan/cda-fhir-translator)                                                                                         |
-| `@interop-gateway/validate-us-core`        | US Core conformance profile validation                                                                                                                                                      |
-| `@interop-gateway/secrets-keychain`        | `SecretsProvider` backed by the OS keychain (dev default)                                                                                                                                   |
-| `@interop-gateway/secrets-vault`           | `SecretsProvider` backed by HashiCorp Vault                                                                                                                                                 |
-| `@interop-gateway/secrets-aws`             | `SecretsProvider` backed by AWS Secrets Manager                                                                                                                                             |
-| `@interop-gateway/engine`                  | Deployable runtime — Docker, YAML pipeline config, CLI                                                                                                                                      |
-| `@interop-gateway/mcp-server`              | MCP tool surface over the same scope-checked, audit-logged API                                                                                                                              |
+| Package                                                        | What it does                                                                                                                               | Depends on                                |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | ----------------------------------------- |
+| [`@interop-gateway/core`](./packages/core/README.md)           | HL7v2/CDA ↔ FHIR translation, US Core validation, and shared primitives (audit log, encrypted storage, scope enforcement, TLS enforcement) | —                                         |
+| [`@interop-gateway/protocol`](./packages/protocol/README.md)   | MLLP, HTTP, and file/SFTP ingest/delivery adapters                                                                                         | `core`                                    |
+| [`@interop-gateway/secrets`](./packages/secrets/README.md)     | `SecretsProvider` implementations — OS keychain, HashiCorp Vault, AWS Secrets Manager                                                      | `core`                                    |
+| [`@interop-gateway/connector`](./packages/connector/README.md) | Vendor-agnostic SMART on FHIR connector — backend-services and `authorization_code`+PKCE auth, read/write/search, Bulk Data `$export`      | `core`                                    |
+| [`@interop-gateway/engine`](./packages/engine/README.md)       | Deployable pipeline runtime — YAML config, persistence, audit log, CLI                                                                     | `core`, `protocol`                        |
+| [`@interop-gateway/mcp`](./packages/mcp/README.md)             | MCP tool surface over the same scope-checked, audit-logged API                                                                             | `core`, `protocol`, `connector`, `engine` |
 
 ## PHI handling and compliance — read before you deploy this
 
@@ -37,7 +29,7 @@ connects to, employee policies, and (for SOC 2) a third-party audit over time. U
 library does not by itself make your deployment compliant.
 
 What the library does concretely: enforces TLS everywhere; writes a tamper-evident audit
-entry for every `engine`/`mcp-server` call, persisted to disk by default and refusing to
+entry for every `engine`/`mcp` call, persisted to disk by default and refusing to
 persist unencrypted unless you explicitly set `allowUnencryptedPersistence: true` (opt
 into `ephemeral: true` instead for tests/quick demos, where in-memory-only is the point)
 — the same rule applies to a dead-letter queue once you configure one; checks SMART
@@ -52,37 +44,35 @@ Connecting to a real hospital's live system is a two-tier process between **you*
 deploying organization) and the EHR vendor/hospital — this package is never a party to
 that relationship. You register your own app with each vendor (Epic, Cerner, etc.) and get
 your own client ID; each hospital independently activates it, runs its own security
-review, and signs its own BAA with you. See `docs/vendor-onboarding.md` for the concrete
-steps. For development and demos, this package targets the free, open sandboxes (SMART
-Health IT reference sandbox, Epic's open.epic) that don't require any of that.
+review, and signs its own BAA with you. For development and demos, this package targets
+the free, open sandboxes (SMART Health IT reference sandbox, Epic's open.epic) that don't
+require any of that.
 
 ## Install
 
-**Not yet published to npm** — every `@interop-gateway/*` scope 404s on the registry
-today. The commands below (and the same `npm install @interop-gateway/<package>` line
-in each package's own README) will work once publishing happens; until then, build
-from source:
+**Not yet published to npm** — the `@interop-gateway` scope 404s on the registry today.
+The commands below will work once publishing happens; until then, build from source:
 
 ```bash
 git clone https://github.com/heyitskundan/interop-gateway.git
 cd interop-gateway
 npm install
-npm run build   # every package (dual ESM+CJS via tsup) + client
+npm run build   # every package, in dependency order, + client
 ```
 
-Then either `npm link` the package(s) you need into your own project, or work directly
-in this repo. Once published:
+Then `npm link` the package(s) you need into your own project. Once published:
 
 ```bash
-npm install @interop-gateway/core @interop-gateway/format-hl7v2
+npm install @interop-gateway/core          # translation + validation only
+npm install @interop-gateway/core @interop-gateway/connector   # + live FHIR connectivity
+npm install @interop-gateway/mcp           # the MCP server, transitively pulls core/protocol/connector/engine
 ```
 
 ## Quick start
 
 ```js
 // JavaScript
-import { InteropGateway } from "@interop-gateway/core";
-import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
+import { InteropGateway, formatHl7v2 } from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
@@ -90,12 +80,19 @@ const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
 
 ```ts
 // TypeScript
-import { InteropGateway, type TranslateOptions } from "@interop-gateway/core";
-import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
+import { InteropGateway, formatHl7v2, type TranslateOptions } from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
 const bundle = gateway.translate(hl7v2Message, options);
+```
+
+```ts
+// Live SMART on FHIR connectivity — separate package, only installed if needed
+import { SmartClient } from "@interop-gateway/connector";
+
+const client = new SmartClient({ baseUrl, auth });
+const patient = await client.read("Patient", patientId);
 ```
 
 ## Working on this repo

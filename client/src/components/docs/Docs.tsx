@@ -1,31 +1,48 @@
 import { useCallback, useState } from "react";
-import { Advanced } from "./Advanced.js";
-import { ApiReference } from "./ApiReference.js";
 import { Changelog } from "./Changelog.js";
+import { Connector } from "./Connector.js";
+import { Core } from "./Core.js";
+import { Engine } from "./Engine.js";
 import { GettingStarted } from "./GettingStarted.js";
 import { Mcp } from "./Mcp.js";
-import { Packages } from "./Packages.js";
+import { Protocol } from "./Protocol.js";
+import { Secrets } from "./Secrets.js";
 import {
-  advancedRail,
-  apiReferenceRail,
   changelogRail,
+  connectorRail,
+  coreRail,
+  engineRail,
   gettingStartedRail,
   mcpRail,
-  packagesRail,
+  protocolRail,
+  secretsRail,
   type RailItem,
 } from "./rails.js";
 
-type PageId = "getting-started" | "api-reference" | "packages" | "mcp" | "advanced" | "changelog";
+type PageId =
+  | "getting-started"
+  | "core"
+  | "protocol"
+  | "secrets"
+  | "connector"
+  | "engine"
+  | "mcp"
+  | "changelog";
 
 const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
   {
     group: "Docs",
+    items: [{ id: "getting-started", label: "Getting Started" }],
+  },
+  {
+    group: "Packages",
     items: [
-      { id: "getting-started", label: "Getting Started" },
-      { id: "api-reference", label: "API Reference" },
-      { id: "packages", label: "Packages" },
+      { id: "core", label: "Core" },
+      { id: "protocol", label: "Protocol" },
+      { id: "secrets", label: "Secrets" },
+      { id: "connector", label: "Connector" },
+      { id: "engine", label: "Engine" },
       { id: "mcp", label: "MCP" },
-      { id: "advanced", label: "Advanced" },
     ],
   },
   { group: "Project", items: [{ id: "changelog", label: "Changelog" }] },
@@ -33,21 +50,23 @@ const NAV: { group: string; items: { id: PageId; label: string }[] }[] = [
 
 const RAILS: Record<PageId, RailItem[]> = {
   "getting-started": gettingStartedRail,
-  "api-reference": apiReferenceRail,
-  packages: packagesRail,
+  core: coreRail,
+  protocol: protocolRail,
+  secrets: secretsRail,
+  connector: connectorRail,
+  engine: engineRail,
   mcp: mcpRail,
-  advanced: advancedRail,
   changelog: changelogRail,
 };
 
 /**
- * The whole docs experience, hand-authored per page (see GettingStarted / ApiReference /
- * Packages / Changelog) rather than parsed from markdown at runtime — a curated
- * sidebar switches between them, with a per-page "on this page" anchor rail on the
- * right. Anchor clicks scroll within the page rather than setting window.location.hash,
- * since App.tsx's own hash-based view router would otherwise mistake an in-page jump for
- * a navigation away from the Docs view. The live translator itself lives in the
- * Translator tab, not here.
+ * The whole docs experience, hand-authored per page rather than parsed from markdown at
+ * runtime — a curated sidebar switches between them, with a per-page "on this page" anchor
+ * rail on the right. Each installable package (core/protocol/secrets/connector/engine/mcp)
+ * gets its own tab, with install-through-usage steps for that package only. Anchor clicks
+ * scroll within the page rather than setting window.location.hash, since App.tsx's own
+ * hash-based view router would otherwise mistake an in-page jump for a navigation away from
+ * the Docs view. The live translator itself lives in the Translator tab, not here.
  */
 export function Docs() {
   const [page, setPage] = useState<PageId>("getting-started");
@@ -100,11 +119,13 @@ export function Docs() {
       </aside>
 
       <main className="docs-content min-w-0">
-        {page === "getting-started" && <GettingStarted goPackages={() => goTo("packages")} />}
-        {page === "api-reference" && <ApiReference />}
-        {page === "packages" && <Packages />}
+        {page === "getting-started" && <GettingStarted goPackages={() => goTo("core")} />}
+        {page === "core" && <Core />}
+        {page === "protocol" && <Protocol />}
+        {page === "secrets" && <Secrets />}
+        {page === "connector" && <Connector />}
+        {page === "engine" && <Engine />}
         {page === "mcp" && <Mcp />}
-        {page === "advanced" && <Advanced />}
         {page === "changelog" && <Changelog />}
       </main>
 

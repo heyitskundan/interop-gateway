@@ -1,25 +1,21 @@
 {
-  "name": "@interop-gateway/core",
+  "name": "@interop-gateway/connector",
   "version": "1.0.0",
-  "description": "Core conversion functionality for interop-gateway: HL7v2/CDA ↔ FHIR translation, US Core profile validation, and shared primitives (correlation IDs, audit log, encrypted storage, secrets-provider interface, scope enforcement, TLS enforcement).",
+  "description": "Vendor-agnostic SMART on FHIR connector: OAuth2 (backend-services/asymmetric JWT and client-credentials), read/search against a FHIR R4 server.",
   "keywords": [
     "fhir",
     "smart-on-fhir",
-    "hl7",
-    "hl7v2",
-    "cda",
-    "us-core",
+    "oauth2",
     "healthcare",
     "healthtech",
-    "interoperability",
-    "hipaa"
+    "interoperability"
   ],
   "license": "Apache-2.0",
   "author": "Kundan",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/heyitskundan/interop-gateway.git",
-    "directory": "packages/core"
+    "directory": "packages/connector"
   },
   "homepage": "https://github.com/heyitskundan/interop-gateway#readme",
   "bugs": {
@@ -37,18 +33,7 @@
       },
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
-    },
-    "./node": {
-      "types": {
-        "import": "./dist/node.d.ts",
-        "require": "./dist/node.d.cts"
-      },
-      "import": "./dist/node.js",
-      "require": "./dist/node.cjs"
     }
-  },
-  "bin": {
-    "interop-gateway": "./dist/cli.js"
   },
   "files": [
     "dist",
@@ -68,8 +53,8 @@
     "prepublishOnly": "npm run build && npm run typecheck && npm test"
   },
   "dependencies": {
-    "hl7-fhir-translator": "^1.0.1",
-    "cda-fhir-translator": "^1.0.0"
+    "@interop-gateway/core": "1.0.0",
+    "jose": "^5.9.6"
   },
   "devDependencies": {
     "@types/node": "22.10.2",

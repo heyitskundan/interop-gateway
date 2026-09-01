@@ -14,8 +14,6 @@
   },
   "dependencies": {
     "@interop-gateway/core": "*",
-    "@interop-gateway/format-cda": "*",
-    "@interop-gateway/format-hl7v2": "*",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"
   },

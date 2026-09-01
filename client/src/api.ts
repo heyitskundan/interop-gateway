@@ -1,16 +1,14 @@
 import {
-  translateToFhir as hl7ToFhir,
-  translateFromFhir as hl7FromFhir,
+  translateHl7v2ToFhir as hl7ToFhir,
+  translateFhirToHl7v2 as hl7FromFhir,
+  translateCdaToFhir as cdaToFhirFn,
+  translateFhirToCda as cdaFromFhirFn,
   type TranslationResult,
-} from "@interop-gateway/format-hl7v2";
-import {
-  translateToFhir as cdaToFhirFn,
-  translateFromFhir as cdaFromFhirFn,
   type TranslateResult as CdaToFhirResult,
   type TranslateToCdaResult,
   type FhirBundle,
-} from "@interop-gateway/format-cda";
-import { GatewayError } from "@interop-gateway/core";
+  GatewayError,
+} from "@interop-gateway/core";
 import type { DisplayResult, Direction, Format } from "./types.js";
 
 export class TranslateError extends Error {

@@ -2,14 +2,18 @@ import {
   GatewayError,
   InteropGateway,
   createEnvelope,
+  formatHl7v2,
+  formatCda,
+  validateUsCoreBundle,
   type AuditSink,
 } from "@interop-gateway/core";
-import { formatHl7v2 } from "@interop-gateway/format-hl7v2";
-import { formatCda } from "@interop-gateway/format-cda";
-import { MllpServer } from "@interop-gateway/protocol-mllp";
-import { HttpIngestServer, sendHttpMessage } from "@interop-gateway/protocol-http";
-import { FileIngestWatcher, writeFileMessage } from "@interop-gateway/protocol-file";
-import { validateUsCoreBundle } from "@interop-gateway/validate-us-core";
+import {
+  MllpServer,
+  HttpIngestServer,
+  sendHttpMessage,
+  FileIngestWatcher,
+  writeFileMessage,
+} from "@interop-gateway/protocol";
 import type { DeadLetterQueue } from "./dead-letter.js";
 import type { DestinationConfig, PipelineConfig, RouteRule } from "./config.js";
 import {

@@ -58,12 +58,7 @@
   },
   "dependencies": {
     "@interop-gateway/core": "1.0.0",
-    "@interop-gateway/format-cda": "1.0.0",
-    "@interop-gateway/format-hl7v2": "1.0.0",
-    "@interop-gateway/protocol-file": "1.0.0",
-    "@interop-gateway/protocol-http": "1.0.0",
-    "@interop-gateway/protocol-mllp": "1.0.0",
-    "@interop-gateway/validate-us-core": "1.0.0",
+    "@interop-gateway/protocol": "1.0.0",
     "yaml": "^2.9.0"
   },
   "devDependencies": {

@@ -1,46 +1,99 @@
 # @interop-gateway/core
 
-The pipeline engine behind [interop-gateway](https://github.com/heyitskundan/interop-gateway):
-envelope/correlation-ID handling, stage interfaces, TLS enforcement, an encrypted-storage
-wrapper, SMART-scope enforcement, a hash-chained audit log, structural HL7v2/CDA
-validation, and the top-level `InteropGateway` API that connector/format packages plug
-into.
+All conversion functionality for [interop-gateway](https://github.com/heyitskundan/interop-gateway)
+in one install: HL7v2 ↔ FHIR and C-CDA ↔ FHIR translation, US Core profile validation,
+and the shared primitives (envelope/correlation-ID handling, TLS enforcement, an
+encrypted-storage wrapper, SMART-scope enforcement, a hash-chained audit log, structural
+HL7v2/CDA validation) that `connector`/`protocol`/`secrets`/`engine`/`mcp` build on.
+Nothing here requires the MCP SDK, AWS/Vault clients, or any other package — installing
+`@interop-gateway/core` alone never pulls those in.
 
 ## Install
-
-Not yet published to npm — see the [root README](../../README.md#install) for building
-from source, or the CLI section below for running the compiled CLI directly.
 
 ```bash
 npm install @interop-gateway/core
 ```
 
-## Use
+## Use — translate/validate through InteropGateway
 
 ```js
 // JavaScript
-import { InteropGateway } from "@interop-gateway/core";
+import { InteropGateway, formatHl7v2 } from "@interop-gateway/core";
 
-const gateway = new InteropGateway({ formats: [/* a format-* plugin */] });
-const result = gateway.validate(hl7v2Message);
+const gateway = new InteropGateway({ formats: [formatHl7v2] });
+const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
 ```
 
 ```ts
 // TypeScript
-import { InteropGateway, type StructuralValidationResult } from "@interop-gateway/core";
+import { InteropGateway, formatHl7v2, type TranslateOptions } from "@interop-gateway/core";
 
-const gateway = new InteropGateway();
-const result: StructuralValidationResult = gateway.validate(hl7v2Message);
+const gateway = new InteropGateway({ formats: [formatHl7v2] });
+const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
+const bundle = gateway.translate(hl7v2Message, options);
 ```
+
+Swap in `formatCda` and `from: "cda"` for C-CDA XML — same call shape, same gateway
+instance can hold both.
+
+## Use — translators directly
+
+Both translators export their own richer functions too, returning the underlying
+package's field-level mapping trail that `InteropGateway.translate()` discards for a
+uniform return type. Aliased here since both wrap packages that otherwise export the
+same names (`translateToFhir`/`translateFromFhir`):
+
+```ts
+import { translateHl7v2ToFhir, translateFhirToHl7v2 } from "@interop-gateway/core";
+
+const result = translateHl7v2ToFhir(rawHl7v2Message);
+result.translated; // FHIR Bundle, JSON string
+result.mappings; // [{ source, target, value, note? }, ...]
+result.warnings; // string[] — segments/fields with no mapping
+```
+
+```ts
+import { translateCdaToFhir, translateFhirToCda } from "@interop-gateway/core";
+
+const result = translateCdaToFhir(rawCdaXml);
+result.bundle; // FHIR Bundle (JSON object, not a string)
+result.mappings; // [{ cdaPath, fhirPath, resourceType }, ...]
+result.warnings; // [{ path, message }, ...]
+```
+
+## Use — US Core validation
+
+```ts
+import { validateUsCore, type UsCoreValidationResult } from "@interop-gateway/core";
+
+const result: UsCoreValidationResult = validateUsCore(patientResource);
+result.supported; // false if there's no rule table for the resourceType
+result.valid;
+result.issues; // string[]
+```
+
+Required-element presence, max-cardinality shape, and fixed-code-value binding checks
+for 15 built-in US Core profiles, plus whatever a caller registers via
+`registerProfile()`/`unregisterProfile()`. Not a terminology-binding validator for
+external code systems (LOINC/SNOMED/RxNorm) — a resource can pass every check here and
+still fail a real conformance validator (like the official FHIR validator with the US
+Core IG loaded) on terminology grounds.
 
 ## What's in this package
 
 - `InteropGateway` — `translate()` (both directions: `{ from: FormatName, to: "fhir" }`
   and `{ from: "fhir", to: FormatName }`) and `validate()`. Connector read/write/search
-  live in `connector-smart-generic`'s own `SmartClient` class instead — `InteropGateway`
-  never grew `connect()`/`read()`/`write()`/`search()`/`send()` methods of its own.
-- `enforceTls()` — every outbound connection in every connector/protocol package must
-  route its target URL through this first.
+  live in `@interop-gateway/connector`'s own `SmartClient` class instead —
+  `InteropGateway` never grew `connect()`/`read()`/`write()`/`search()`/`send()` methods
+  of its own.
+- `translateHl7v2ToFhir()`/`translateFhirToHl7v2()`/`formatHl7v2` — wraps the published
+  [`hl7-fhir-translator`](https://github.com/heyitskundan/hl7-fhir-translator) package.
+- `translateCdaToFhir()`/`translateFhirToCda()`/`formatCda` — wraps the published
+  [`cda-fhir-translator`](https://github.com/heyitskundan/cda-fhir-translator) package.
+- `validateUsCore()`/`validateUsCoreBundle()`/`registerProfile()` — US Core profile
+  validation, see above.
+- `enforceTls()` — every outbound connection in `connector`/`protocol` routes its target
+  URL through this first.
 - `EncryptedStore` — AES-256-GCM wrapper around any key/value `Store`, for anything a
   deployment chooses to persist. `engine`'s CLI wraps its default on-disk audit log and
   dead-letter queue in this when `persistence.*.encryptPassphrase` is set in a pipeline
@@ -60,10 +113,10 @@ const result: StructuralValidationResult = gateway.validate(hl7v2Message);
 - `FileAuditLog` — same hash-chained log and PHI check as `HashChainedAuditLog`, but
   persisted through a `Store` (so it survives a restart, and — wrapped in
   `EncryptedStore` — is encrypted at rest) instead of held only in process memory.
-- `SecretsProvider` — the interface every `secrets-*` package implements; `core` never
-  stores a plaintext secret itself.
+- `SecretsProvider` — the interface `@interop-gateway/secrets`'s providers implement;
+  `core` never stores a plaintext secret itself.
 - `createEnvelope()`/`withPayload()`/`Envelope` — wraps a payload with a correlation ID,
-  timestamp, and source label the moment it's ingested. `engine`/`mcp-server` use
+  timestamp, and source label the moment it's ingested. `engine`/`mcp` use
   `createEnvelope()` directly; `withPayload()` (swap the payload, keep the same
   correlation ID) has no consumer in this monorepo yet.
 - `InMemoryStore` — the reference `Store` implementation (used by tests and by anything
@@ -90,14 +143,6 @@ this package alone does not make a deployment HIPAA- or SOC 2-compliant.
 
 ```bash
 npx interop-gateway validate <file>
-```
-
-Not yet published to npm — the `npx` command above will 404 until it is. Until then,
-build it from the repo and run the compiled CLI directly:
-
-```bash
-npm run build -w packages/core
-node packages/core/dist/cli.js validate <file>
 ```
 
 Exits `0` if the input is a structurally valid HL7v2 message or C-CDA document, `1` if

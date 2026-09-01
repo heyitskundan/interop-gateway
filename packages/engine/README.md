@@ -31,7 +31,7 @@ destination:
 validateProfile: true # optional, default false — see below
 ```
 
-`validateProfile: true` runs `@interop-gateway/validate-us-core` on every translated
+`validateProfile: true` runs `@interop-gateway/core` on every translated
 Bundle before delivery. A resource that fails a required US Core element check is
 routed to the same failure channel a translation failure already uses (an `AE` ACK, a
 422, the `error/` subdirectory) and delivery never runs.
@@ -87,7 +87,7 @@ rather than letting unmatched messages fail.
 
 ## Persistence: audit log and dead-letter queue
 
-`runPipeline()` — called directly, from `run`, or via `mcp-server`'s `run_pipeline`
+`runPipeline()` — called directly, from `run`, or via `mcp`'s `run_pipeline`
 tool — persists the audit log to disk by default, next to the config file (or
 `process.cwd()` for a direct library call with no config path). The dead-letter queue
 stays opt-in to _have_ — set `persistence.deadLetter` if you want one — but `run`
@@ -195,7 +195,7 @@ Internally, this is hand-rolled sequential logic (source → translate →
 `validateProfile`? → route → deliver): `runPipeline()`'s handler calls
 `createEnvelope`/`AuditSink.append` directly at each stage, rather than composing a
 generic chain — `core` shipped a `Pipeline`/`Stage` abstraction for this at one point,
-but neither this package nor `mcp-server` ever adopted it (this package's needs — an
+but neither this package nor `mcp` ever adopted it (this package's needs — an
 optional validation stage, fan-out delivery, per-stage audit/dead-letter hooks — don't
 map cleanly onto a linear envelope-in/envelope-out model), so it was removed rather than
 kept as unused code.

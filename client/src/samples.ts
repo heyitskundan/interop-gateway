@@ -1,5 +1,7 @@
-import { translateToFhir as hl7ToFhir } from "@interop-gateway/format-hl7v2";
-import { translateToFhir as cdaToFhirFn } from "@interop-gateway/format-cda";
+import {
+  translateHl7v2ToFhir as hl7ToFhir,
+  translateCdaToFhir as cdaToFhirFn,
+} from "@interop-gateway/core";
 import type { Direction, Format } from "./types.js";
 
 export interface Sample {

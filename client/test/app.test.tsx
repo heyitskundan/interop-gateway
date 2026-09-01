@@ -122,17 +122,23 @@ describe("App", () => {
     render(<App />);
     await user.click(screen.getByRole("radio", { name: "Docs" }));
 
-    await user.click(screen.getByRole("link", { name: "API Reference" }));
-    expect(screen.getByRole("heading", { name: "API Reference" })).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Core" }));
+    expect(screen.getByRole("heading", { name: "@interop-gateway/core" })).toBeInTheDocument();
 
-    await user.click(screen.getByRole("link", { name: "Packages" }));
-    expect(screen.getByRole("heading", { name: "The 13 packages" })).toBeInTheDocument();
+    await user.click(screen.getByRole("link", { name: "Protocol" }));
+    expect(screen.getByRole("heading", { name: "@interop-gateway/protocol" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "Secrets" }));
+    expect(screen.getByRole("heading", { name: "@interop-gateway/secrets" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "Connector" }));
+    expect(screen.getByRole("heading", { name: "@interop-gateway/connector" })).toBeInTheDocument();
+
+    await user.click(screen.getByRole("link", { name: "Engine" }));
+    expect(screen.getByRole("heading", { name: "@interop-gateway/engine" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "MCP" }));
     expect(screen.getByRole("heading", { name: "MCP server" })).toBeInTheDocument();
-
-    await user.click(screen.getByRole("link", { name: "Advanced" }));
-    expect(screen.getByRole("heading", { name: "Advanced" })).toBeInTheDocument();
 
     await user.click(screen.getByRole("link", { name: "Changelog" }));
     expect(screen.getByRole("heading", { name: "Changelog" })).toBeInTheDocument();
@@ -145,8 +151,8 @@ describe("App", () => {
     await user.click(screen.getByRole("link", { name: "MCP" }));
 
     const content = document.body.textContent ?? "";
-    expect(content).toContain("npx @interop-gateway/mcp-server");
-    expect(content).toContain("npm run build -w packages/mcp-server");
+    expect(content).toContain("npx @interop-gateway/mcp");
+    expect(content).toContain("npm run build");
     expect(content).toContain("translate");
     expect(content).toContain("validateUsCore");
     expect(content).toContain("connect_ehr");
@@ -157,16 +163,25 @@ describe("App", () => {
     expect(content).toContain("stop_pipeline");
   });
 
-  it("shows the core primitives and connector internals on the Advanced page", async () => {
+  it("shows the core primitives on the Core page", async () => {
     const user = userEvent.setup();
     render(<App />);
     await user.click(screen.getByRole("radio", { name: "Docs" }));
-    await user.click(screen.getByRole("link", { name: "Advanced" }));
+    await user.click(screen.getByRole("link", { name: "Core" }));
 
     const content = document.body.textContent ?? "";
     expect(content).toContain("createEnvelope");
     expect(content).toContain("EncryptedStore");
     expect(content).toContain("HashChainedAuditLog");
+  });
+
+  it("shows connector internals on the Connector page", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    await user.click(screen.getByRole("radio", { name: "Docs" }));
+    await user.click(screen.getByRole("link", { name: "Connector" }));
+
+    const content = document.body.textContent ?? "";
     expect(content).toContain("TokenManager");
     expect(content).toContain("classifyWriteFailureStatus");
   });

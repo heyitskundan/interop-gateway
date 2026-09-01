@@ -2,12 +2,15 @@
 
 ## v1.0.0
 
-First tagged release. All 13 packages named in the README (`core`,
-`connector-smart-generic`, `protocol-mllp`, `protocol-http`, `protocol-file`,
-`format-hl7v2`, `format-cda`, `validate-us-core`, `secrets-keychain`, `secrets-vault`,
-`secrets-aws`, `engine`, `mcp-server`) plus the browser demo client build, typecheck,
-test, and lint clean. Every package's `version` field synced to `1.0.0`, including
-internal `@interop-gateway/*` cross-package dependency ranges.
+First tagged release. All 6 published packages named in the README (`core`,
+`protocol`, `secrets`, `connector`, `engine`, `mcp`) plus the browser demo client
+build, typecheck, test, and lint clean. Every package's `version` field synced to
+`1.0.0`, including internal `@interop-gateway/*` cross-package dependency ranges.
+`core` consolidates translation (HL7v2/CDA) and US Core validation, `protocol`
+consolidates the MLLP/HTTP/file adapters, and `secrets` consolidates the keychain/
+Vault/AWS providers — each of those started as a separate package during development
+and was folded into its published grouping before this release, so someone installing
+just `@interop-gateway/core` still installs nothing MCP/AWS/Vault-related.
 
 - **`core`** — `InteropGateway.translate()` supports both directions:
   `{ from: FormatName, to: "fhir" }` (structural validation first, then
@@ -15,7 +18,7 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   throwing `GatewayError`/`FHIR_INPUT_INVALID` if it isn't valid JSON, then
   `plugin.fromFhir()` — structural validation doesn't apply to FHIR input).
   `TranslateOptions` is a discriminated union of the two directions, so an invalid
-  combination is a compile error, not a runtime one. `format-hl7v2` and `format-cda`'s
+  combination is a compile error, not a runtime one. `core`'s hl7v2/cda
   `FormatPlugin.fromFhir()` implementations needed no changes — `core` just wasn't
   calling them yet.
 - **`engine`** — `PipelineConfig` has an opt-in `validateProfile: boolean` flag
@@ -30,16 +33,16 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   and the same correlation ID is prefixed onto the message returned through the failure
   channel (`[id] <message>`) so a failure surfaced to the sender's own system can be
   matched back to its audit trail. `RunningPipeline` exposes the resolved `auditLog`.
-- **`mcp-server`** — new `validateUsCore` tool: takes a FHIR resource or Bundle (JSON
+- **`mcp`** — new `validateUsCore` tool: takes a FHIR resource or Bundle (JSON
   string, typically `translate`'s own output) and runs `validateUsCore`/
   `validateUsCoreBundle` against it. `createInteropGatewayMcpServer()` takes an optional
   `{ auditSink? }` (same default as `engine`), and `translate`/`validate`/
   `validateUsCore` each write a correlated audit entry per call.
-- **`mcp-server`** — 6 new tools, all wrapping existing `connector-smart-generic`/
-  `protocol-mllp`/`engine` functionality rather than adding new capability:
+- **`mcp`** — 6 new tools, all wrapping existing `connector`/
+  `protocol`/`engine` functionality rather than adding new capability:
   `connect_ehr` (creates a `SmartClient`, no network call), `read_resource`/
   `write_resource` (scope-checked read/search/create/update/delete against the
-  connected server), `send_message` (real MLLP send via `protocol-mllp`), and
+  connected server), `send_message` (real MLLP send via `protocol`), and
   `run_pipeline`/`stop_pipeline` (start/stop an `engine` pipeline from a YAML string,
   in-memory per server instance). Every tool follows the existing pattern: a
   `correlationId`, `isError: true` + the underlying `GatewayError`'s message on
@@ -54,7 +57,7 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   `Bundle`) and fans out to every destination in its `to` list on match — rules tried
   in order, first match wins, no match is a delivery failure through the same failure
   channel as any other. `core`'s `Pipeline`/`Stage` classes remain unused by both
-  `engine` and `mcp-server` — a separate, smaller item (see below).
+  `engine` and `mcp` — a separate, smaller item (see below).
 - **`engine`** — dead-letter queue and persisted audit log, closing the gap the
   `SECURITY.md` correction below used to describe. `FileDeadLetterQueue` (`core`'s new
   `Store`-backed) retains a message that fails translation/validation/routing/delivery
@@ -78,7 +81,7 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   `HashChainedAuditLog`/`FileAuditLog.append()` now clones the entry it's given instead
   of storing it by reference, so a caller mutating the object it passed in after
   `append()` returns can no longer silently rewrite tamper-evident history.
-- **`validate-us-core`** — three real fixes to its self-acknowledged gaps: (1) max
+- **`core`'s US Core validation** — three real fixes to its self-acknowledged gaps: (1) max
   cardinality is now checked (`FieldRule.max: 1` — a `0..1`/`1..1` element that
   serialized as a JSON array now fails, on top of the existing presence check); (2)
   `status`/`intent`/`lifecycleStatus` fields bound with **required** strength to one of
@@ -96,7 +99,7 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   `resetProfiles()` round out the registry API. Still not independently re-verified
   against fetched US Core StructureDefinition JSON — that caveat stands, see the
   package's own README.
-- **`connector-smart-generic`** — two real gaps closed: (1) the interactive, patient/
+- **`connector`** — two real gaps closed: (1) the interactive, patient/
   clinician-facing SMART App Launch. `buildAuthorizationUrl()` builds the
   authorization-endpoint redirect with PKCE (`S256`), `exchangeAuthorizationCode()`
   finishes the exchange once the authorization server redirects back with a `code`,
@@ -116,16 +119,16 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   downloads; `parseNdjson()` parses the output files. 42 new tests (74 total in this
   package), all backward compatible — no existing test needed to change.
 - **`core`'s `Pipeline`/`Stage` composable-stage abstraction removed.** It shipped
-  exported and tested but no package ever adopted it — `engine`'s and `mcp-server`'s
+  exported and tested but no package ever adopted it — `engine`'s and `mcp`'s
   actual needs (an optional validation stage, fan-out delivery, per-stage audit/
   dead-letter hooks) don't map cleanly onto a linear envelope-in/envelope-out chain,
   and forcing a refactor onto it would have meant rewriting working, tested, audited
   logic for no functional gain. Dead code left in a public API surface invites someone
   to build against an abstraction nobody uses; removed instead of kept as aspirational.
-- **Persistence inverted to safe-by-default across `engine` and `mcp-server`.**
-  `runPipeline()` (direct call, CLI, or via `mcp-server`'s `run_pipeline`) and
+- **Persistence inverted to safe-by-default across `engine` and `mcp`.**
+  `runPipeline()` (direct call, CLI, or via `mcp`'s `run_pipeline`) and
   `createInteropGatewayMcpServer()` now default to a `FileAuditLog` persisted to disk
-  (`<name>-audit/`, or `./mcp-server-audit` for the MCP server) instead of an in-memory
+  (`<name>-audit/`, or `./mcp-audit` for the MCP server) instead of an in-memory
   `HashChainedAuditLog()`. Persisting without `persistence.audit.encryptPassphrase` set
   throws `GatewayError`/`UNENCRYPTED_PERSISTENCE_REFUSED` before anything is written,
   unless `allowUnencryptedPersistence: true` is explicitly passed (the CLI's
@@ -137,12 +140,12 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   changed); the CLI's `run` command still always creates one by default. `engine`
   gained a new `persistence.ts` module (`resolveAuditSink`/`resolveDeadLetterQueue`/
   `resolveDeadLetterQueueWithDefault`) shared by `pipeline.ts`, `cli.ts`, and
-  `mcp-server`, so the encryption gate lives in exactly one place. 20 new tests across
-  `engine`/`mcp-server` cover the refuse-unencrypted, persist-with-passphrase, and
+  `mcp`, so the encryption gate lives in exactly one place. 20 new tests across
+  `engine`/`mcp` cover the refuse-unencrypted, persist-with-passphrase, and
   ephemeral-opt-out paths.
-- **`mcp-server` gained 6 tools closing the gap between what the SDK can do and what an
+- **`mcp` gained 6 tools closing the gap between what the SDK can do and what an
   AI agent using it through MCP could reach.** `start_smart_launch`/
-  `complete_smart_launch` expose `connector-smart-generic`'s `authorization_code`+PKCE
+  `complete_smart_launch` expose `connector`'s `authorization_code`+PKCE
   flow (`connect_ehr` alone only ever supported backend-services auth) — two tools, not
   one extended `connect_ehr`, since an authorization-code exchange needs a
   redirect/callback step no single synchronous tool call can wait through;
@@ -156,14 +159,15 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   the previous release; the line was just never updated. `createInteropGatewayMcpServer()`
   is now `async` (`Promise<McpServer>`) to resolve the new default persisted audit sink;
   9 new tests cover the SMART launch round-trip and the full bulk-export lifecycle.
-- Package READMEs (`core`, `engine`, `mcp-server`, and the 10 others) document running
-  each CLI/MCP server from a local build, since none of the `@interop-gateway/*`
-  packages are published to npm yet — the same caveat is centralized in the root
-  README's Install section.
-- Docs site: added a `format-cda` code example to the API Reference (previously only
-  `format-hl7v2` had one), and the API Reference/Packages pages describe exactly which
-  pieces are wired in (`validate-us-core`, correlation IDs/audit logging) versus still
-  standalone. Client's public Changelog page brought current.
+- Package READMEs (all 6: `core`, `protocol`, `secrets`, `connector`, `engine`, `mcp`)
+  document running each CLI/MCP server from a local build, since none of the
+  `@interop-gateway/*` packages are published to npm yet — the same caveat is
+  centralized in the root README's Install section.
+- Docs site: rebuilt as one tab per published package (`core`/`protocol`/`secrets`/
+  `connector`/`engine`/`mcp`), each with full install-through-usage coverage for that
+  package alone — including US Core validation, correlation IDs/audit logging, and
+  every code example in both JS and TS — plus Getting Started and Changelog. Replaces
+  the earlier shared API Reference/Packages pages.
 - `SECURITY.md`/`README.md` corrected: previously claimed the package encrypts a
   dead-letter queue at rest with a retention/purge policy — no dead-letter queue exists
   in the codebase, and the audit log is in-memory by default, not persisted. Both docs
@@ -171,13 +175,10 @@ internal `@interop-gateway/*` cross-package dependency ranges.
   (`EncryptedStore` is a shipped primitive, not automatically applied to anything).
   `core/README.md`'s claim that `InteropGateway` would grow `connect()`/`read()`/
   `write()`/`send()` methods was also removed — that functionality lives in
-  `connector-smart-generic`'s separate `SmartClient` class instead.
-- `core`'s `Pipeline`/`Stage` classes remain unused outside their own test suite — both
-  `engine` and `mcp-server` call `createEnvelope`/`AuditSink.append` directly rather
-  than composing a `Pipeline`, which was enough to wire in an audit trail without the
-  larger `Pipeline`/`Stage`-adoption refactor. See `docs/architecture.md`'s "Known
-  architectural debt" for what's still open: `translate()`'s discarded mapping trail,
-  no interactive demo for the connector/secrets/engine/mcp-server packages, and no npm
+  `connector`'s separate `SmartClient` class instead.
+- Still open: `translate()`'s discarded mapping trail (`translateHl7v2ToFhir`/
+  `translateFhirToHl7v2`/`translateCdaToFhir`/`translateFhirToCda` still needed for
+  that), no interactive demo for the connector/secrets/engine/mcp packages, and no npm
   publish yet.
 
 ## v0.4.0
