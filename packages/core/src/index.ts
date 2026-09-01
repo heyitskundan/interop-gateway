@@ -12,6 +12,7 @@ export {
   type FormatPlugin,
   type InteropGatewayOptions,
   type TranslateOptions,
+  type TranslationOutcome,
 } from "./gateway.js";
 
 export {

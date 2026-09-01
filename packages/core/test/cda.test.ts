@@ -40,14 +40,16 @@ describe("formatCda (FormatPlugin)", () => {
     expect(formatCda.name).toBe("cda");
   });
 
-  it("toFhir() returns a parsed Bundle object, not a wrapped TranslateResult", () => {
-    const bundle = formatCda.toFhir(ccdFixture) as { resourceType: string };
-    expect(bundle.resourceType).toBe("Bundle");
+  it("toFhir()'s value is a parsed Bundle object, alongside the mapping trail", () => {
+    const outcome = formatCda.toFhir(ccdFixture);
+    expect((outcome.value as { resourceType: string }).resourceType).toBe("Bundle");
+    expect(outcome.mappings.length).toBeGreaterThan(0);
+    expect(Array.isArray(outcome.warnings)).toBe(true);
   });
 
   it("fromFhir() serializes a Bundle object back into C-CDA XML", () => {
-    const bundle = formatCda.toFhir(ccdFixture);
-    const xml = formatCda.fromFhir(bundle);
-    expect(xml).toContain("<ClinicalDocument");
+    const toFhirOutcome = formatCda.toFhir(ccdFixture);
+    const fromFhirOutcome = formatCda.fromFhir(toFhirOutcome.value);
+    expect(fromFhirOutcome.value as string).toContain("<ClinicalDocument");
   });
 });

@@ -9,14 +9,13 @@ export function Core() {
         @interop-gateway/core
       </h1>
       <p style={muted}>
-        All conversion functionality in one install: HL7v2 ↔ FHIR and C-CDA ↔ FHIR
-        translation, US Core profile validation, and the shared primitives (envelope/
-        correlation-ID handling, TLS enforcement, an encrypted-storage wrapper,
-        SMART-scope enforcement, a hash-chained audit log, structural HL7v2/CDA
-        validation) that <code>protocol</code>/<code>secrets</code>/<code>connector</code>/
-        <code>engine</code>/<code>mcp</code> build on. Nothing here requires the MCP SDK,
-        AWS/Vault clients, or any other package — installing <code>@interop-gateway/core</code>{" "}
-        alone never pulls those in.
+        All conversion functionality in one install: HL7v2 ↔ FHIR and C-CDA ↔ FHIR translation, US
+        Core profile validation, and the shared primitives (envelope/ correlation-ID handling, TLS
+        enforcement, an encrypted-storage wrapper, SMART-scope enforcement, a hash-chained audit
+        log, structural HL7v2/CDA validation) that <code>protocol</code>/<code>secrets</code>/
+        <code>connector</code>/<code>engine</code>/<code>mcp</code> build on. Nothing here requires
+        the MCP SDK, AWS/Vault clients, or any other package — installing{" "}
+        <code>@interop-gateway/core</code> alone never pulls those in.
       </p>
 
       <h2 id="install" className="mt-8">
@@ -34,34 +33,49 @@ export function Core() {
             code: `import { InteropGateway, formatHl7v2 } from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
-const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });`,
+const result = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+result.value;     // the FHIR Bundle
+result.mappings;  // field-level mapping trail
+result.warnings;  // segments/fields with no mapping`,
           },
           {
             lang: "ts",
-            code: `import { InteropGateway, formatHl7v2, type TranslateOptions } from "@interop-gateway/core";
+            code: `import {
+  InteropGateway,
+  formatHl7v2,
+  type TranslateOptions,
+  type TranslationOutcome,
+} from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
-const bundle = gateway.translate(hl7v2Message, options);`,
+const result: TranslationOutcome = gateway.translate(hl7v2Message, options);
+result.value;     // the FHIR Bundle
+result.mappings;  // field-level mapping trail
+result.warnings;  // segments/fields with no mapping`,
           },
         ]}
       />
       <p style={muted}>
-        Swap in <code>formatCda</code> and <code>from: "cda"</code> for C-CDA XML — same call
-        shape, same gateway instance can hold both. <code>InteropGateway.translate()</code>{" "}
-        runs a structural check first (well-formed HL7v2/C-CDA) and throws{" "}
-        <code>GatewayError</code> before ever touching a format plugin if that check fails.
+        Swap in <code>formatCda</code> and <code>from: "cda"</code> for C-CDA XML — same call shape,
+        same gateway instance can hold both. <code>InteropGateway.translate()</code> runs a
+        structural check first (well-formed HL7v2/C-CDA) and throws <code>GatewayError</code> before
+        ever touching a format plugin if that check fails. <code>result.mappings</code>/
+        <code>result.warnings</code> keep whatever shape the registered format plugin produces
+        (HL7v2 and C-CDA mapping trails carry different fields) — only the outer{" "}
+        <code>{"{ value, mappings, warnings }"}</code> envelope is uniform across formats.
       </p>
 
       <h2 id="translators" className="mt-8">
         Translators directly
       </h2>
       <p style={muted}>
-        Both translators export their own richer functions too, returning the underlying
-        package's field-level mapping trail that <code>InteropGateway.translate()</code>{" "}
-        discards for a uniform return type. Aliased here since both wrap packages that
-        otherwise export the same names (<code>translateToFhir</code>/
-        <code>translateFromFhir</code>):
+        Both translators export their own functions too, for the properly-typed per-format result (
+        <code>TranslationResult</code>'s <code>Mapping[]</code>, <code>TranslateResult</code>'s{" "}
+        <code>MappingTraceEntry[]</code>) instead of <code>InteropGateway.translate()</code>'s
+        format-agnostic <code>readonly unknown[]</code>. Aliased here since both wrap packages that
+        otherwise export the same names (<code>translateToFhir</code>/<code>translateFromFhir</code>
+        ):
       </p>
       <CodeBlock
         variants={[
@@ -140,8 +154,8 @@ result.issues;    // string[]`,
         ]}
       />
       <p style={muted}>
-        Required-element presence, max-cardinality shape, and fixed-code-value binding checks
-        for 15 built-in US Core profiles, plus whatever a caller registers via{" "}
+        Required-element presence, max-cardinality shape, and fixed-code-value binding checks for 15
+        built-in US Core profiles, plus whatever a caller registers via{" "}
         <code>registerProfile()</code>/<code>unregisterProfile()</code> — the rule table isn't a
         closed hardcoded set. Not a terminology-binding validator for external code systems
         (LOINC/SNOMED/RxNorm) — a resource can pass every check here and still fail a real
@@ -156,8 +170,8 @@ result.issues;    // string[]`,
       </h2>
       <p style={muted}>
         <code>createEnvelope()</code> wraps a payload with a correlation ID the moment it's
-        ingested, so every downstream step — translation, delivery, an audit entry, a failure —
-        can be tied back to the same originating message.
+        ingested, so every downstream step — translation, delivery, an audit entry, a failure — can
+        be tied back to the same originating message.
       </p>
       <CodeBlock
         variants={[
@@ -238,18 +252,17 @@ const raw = await store.get("token"); // Uint8Array | undefined, decrypted on re
         <code>InMemoryStore</code> is the in-memory <code>Store</code> implementation (used by
         tests, and the default for anything that hasn't wired a real backend).{" "}
         <code>FileStore</code> (<code>@interop-gateway/core/node</code>) is the on-disk one — one
-        file per key under a directory, key names base64url-encoded so no key can escape it —
-        which <code>engine</code>'s <code>FileAuditLog</code>/<code>FileDeadLetterQueue</code>{" "}
-        use by default.
+        file per key under a directory, key names base64url-encoded so no key can escape it — which{" "}
+        <code>engine</code>'s <code>FileAuditLog</code>/<code>FileDeadLetterQueue</code> use by
+        default.
       </p>
 
       <h2 id="scope" className="mt-8">
         Scope enforcement
       </h2>
       <p style={muted}>
-        <code>ScopeSet</code> is what <code>SmartClient</code> checks before every
-        read/write/search — reusable standalone if you're enforcing SMART scopes outside the
-        connector.
+        <code>ScopeSet</code> is what <code>SmartClient</code> checks before every read/write/search
+        — reusable standalone if you're enforcing SMART scopes outside the connector.
       </p>
       <CodeBlock
         variants={[
@@ -282,10 +295,10 @@ scopeSet.assert("write", "Patient");   // throws ScopeError`,
         TLS enforcement
       </h2>
       <p style={muted}>
-        <code>enforceTls()</code> is the single check every outbound connection in this SDK
-        routes through — <code>SmartClient</code>, <code>sendHttpMessage</code>, every{" "}
-        <code>secrets</code> provider's network calls (except <code>AwsSecretsManagerProvider</code>,
-        which hardcodes an <code>https://</code> endpoint by construction instead).
+        <code>enforceTls()</code> is the single check every outbound connection in this SDK routes
+        through — <code>SmartClient</code>, <code>sendHttpMessage</code>, every <code>secrets</code>{" "}
+        provider's network calls (except <code>AwsSecretsManagerProvider</code>, which hardcodes an{" "}
+        <code>https://</code> endpoint by construction instead).
       </p>
       <CodeBlock
         variants={[
@@ -311,20 +324,20 @@ enforceTls("http://ehr.example.org/fhir");  // throws TlsError immediately, no r
       </h2>
       <p style={muted}>
         <code>HashChainedAuditLog</code> is the default <code>AuditSink</code> passed to{" "}
-        <code>runPipeline()</code>/<code>createInteropGatewayMcpServer()</code> when called
-        directly — append-only, in-memory, each entry's hash covers the previous entry's,{" "}
-        <code>verify()</code> recomputes the chain to detect tampering. Refuses to accept an
-        entry whose <code>correlationId</code>/<code>who</code>/<code>what</code>/
+        <code>runPipeline()</code>/<code>createInteropGatewayMcpServer()</code> when called directly
+        — append-only, in-memory, each entry's hash covers the previous entry's,{" "}
+        <code>verify()</code> recomputes the chain to detect tampering. Refuses to accept an entry
+        whose <code>correlationId</code>/<code>who</code>/<code>what</code>/
         <code>resourceType</code> matches an SSN, MRN-labeled identifier, email address, phone
         number, or bare 9-11 digit identifier shape — a backstop on top of those fields never
-        carrying full message content, not a general PHI scrubber. <code>append()</code> clones
-        the entry before storing it, so mutating the object you passed in afterward can't
-        rewrite stored history.
+        carrying full message content, not a general PHI scrubber. <code>append()</code> clones the
+        entry before storing it, so mutating the object you passed in afterward can't rewrite stored
+        history.
       </p>
       <p style={muted}>
-        <code>FileAuditLog</code> is the same log, persisted through a <code>Store</code>{" "}
-        instead — <code>engine</code>'s CLI uses this by default. Wrap the backing{" "}
-        <code>Store</code> in <code>EncryptedStore</code> above for encryption at rest.
+        <code>FileAuditLog</code> is the same log, persisted through a <code>Store</code> instead —{" "}
+        <code>engine</code>'s CLI uses this by default. Wrap the backing <code>Store</code> in{" "}
+        <code>EncryptedStore</code> above for encryption at rest.
       </p>
       <CodeBlock
         variants={[
@@ -375,9 +388,9 @@ await persisted.verify();        // true — false if any entry/hash was tampere
         Raw-credential guard
       </h2>
       <p style={muted}>
-        <code>assertNotRawCredential()</code> throws if a value looks like a PEM private key or
-        an AWS access key ID — a guard against accidentally passing a real secret somewhere only
-        a <code>SecretsProvider</code> reference belongs.
+        <code>assertNotRawCredential()</code> throws if a value looks like a PEM private key or an
+        AWS access key ID — a guard against accidentally passing a real secret somewhere only a{" "}
+        <code>SecretsProvider</code> reference belongs.
       </p>
       <CodeBlock
         variants={[
@@ -401,9 +414,9 @@ assertNotRawCredential(privateKeyJwk.d, "auth.privateKey"); // throws if it look
       </h2>
       <CodeBlock lang="bash" code="npx interop-gateway validate <file>" />
       <p style={muted}>
-        Exits <code>0</code> if the input is a structurally valid HL7v2 message or C-CDA
-        document, <code>1</code> if it parses as one of those formats but fails a structural
-        check, <code>2</code> on bad CLI usage.
+        Exits <code>0</code> if the input is a structurally valid HL7v2 message or C-CDA document,{" "}
+        <code>1</code> if it parses as one of those formats but fails a structural check,{" "}
+        <code>2</code> on bad CLI usage.
       </p>
     </div>
   );

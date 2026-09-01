@@ -20,9 +20,9 @@ export function Changelog() {
               First tagged release — all 6 published packages (<code>core</code>,{" "}
               <code>protocol</code>, <code>secrets</code>, <code>connector</code>,{" "}
               <code>engine</code>, <code>mcp</code>) plus the browser demo client build, typecheck,
-              test, and lint clean; every package <code>version</code> synced to{" "}
-              <code>1.0.0</code>. <code>core</code> consolidates translation (HL7v2/CDA) and US
-              Core validation, <code>protocol</code> consolidates the MLLP/HTTP/file adapters, and{" "}
+              test, and lint clean; every package <code>version</code> synced to <code>1.0.0</code>.{" "}
+              <code>core</code> consolidates translation (HL7v2/CDA) and US Core validation,{" "}
+              <code>protocol</code> consolidates the MLLP/HTTP/file adapters, and{" "}
               <code>secrets</code> consolidates the keychain/Vault/AWS providers — installing just{" "}
               <code>@interop-gateway/core</code> still pulls in nothing MCP/AWS/Vault-related
             </li>
@@ -38,25 +38,26 @@ export function Changelog() {
               channel a translation failure already uses
             </li>
             <li>
-              <code>engine</code> and <code>mcp</code>: every message/call gets a correlation
-              ID (<code>core</code>'s <code>createEnvelope</code>) and writes a tamper-evident audit
+              <code>engine</code> and <code>mcp</code>: every message/call gets a correlation ID (
+              <code>core</code>'s <code>createEnvelope</code>) and writes a tamper-evident audit
               entry to an injectable <code>AuditSink</code> (default: in-memory{" "}
               <code>HashChainedAuditLog</code>) — pass your own for durable, encrypted storage
             </li>
             <li>
-              <code>mcp</code>: new <code>validateUsCore</code> tool — checks a translated
-              FHIR resource/Bundle against US Core's required elements
+              <code>mcp</code>: new <code>validateUsCore</code> tool — checks a translated FHIR
+              resource/Bundle against US Core's required elements
             </li>
             <li>
-              Package READMEs (all 6) document running each CLI/MCP server from a local build,
-              since none of the packages are published to npm yet
+              Package READMEs (all 6) document running each CLI/MCP server from a local build, since
+              none of the packages are published to npm yet
             </li>
             <li>
-              Still open: <code>InteropGateway.translate()</code> returns the bare translated value
-              on both directions and doesn't expose the field-level mapping trail —{" "}
-              <code>translateHl7v2ToFhir</code>/<code>translateFhirToHl7v2</code>/
-              <code>translateCdaToFhir</code>/<code>translateFhirToCda</code> (called directly)
-              still needed for that
+              <code>core</code>: <code>InteropGateway.translate()</code> now returns{" "}
+              <code>{"{ value, mappings, warnings }"}</code> instead of the bare translated value —{" "}
+              <code>mappings</code>/<code>warnings</code> keep whatever shape the registered format
+              plugin produces (only the outer envelope is uniform across formats). Closes the gap
+              where the mapping trail was only reachable by calling{" "}
+              <code>translateHl7v2ToFhir</code>/<code>translateCdaToFhir</code> directly.
             </li>
           </ul>
         </div>

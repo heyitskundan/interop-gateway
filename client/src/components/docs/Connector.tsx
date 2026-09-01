@@ -12,14 +12,14 @@ export function Connector() {
         Vendor-agnostic SMART on FHIR connector: backend-services token exchange (
         <code>client_secret_post</code>, <code>private_key_jwt</code>) and the interactive,
         patient/clinician-facing <code>authorization_code</code> flow with PKCE, scope-checked{" "}
-        <code>read()</code>/<code>search()</code>/<code>write()</code> against a FHIR R4 server,
-        and Bulk Data <code>$export</code>.
+        <code>read()</code>/<code>search()</code>/<code>write()</code> against a FHIR R4 server, and
+        Bulk Data <code>$export</code>.
       </p>
       <p style={muted}>
-        This package never ships with, brokers, or manages a shared credential. Whoever deploys
-        it registers their own app with each vendor (Epic, Cerner, etc.) and supplies their own
-        client ID, secret/key, and token endpoint — a two-tier vendor/hospital access process
-        this package does not change.
+        This package never ships with, brokers, or manages a shared credential. Whoever deploys it
+        registers their own app with each vendor (Epic, Cerner, etc.) and supplies their own client
+        ID, secret/key, and token endpoint — a two-tier vendor/hospital access process this package
+        does not change.
       </p>
 
       <h2 id="install" className="mt-8">
@@ -78,10 +78,10 @@ const client = new SmartClient(options);`,
         authorization_code (SMART App Launch, patient/clinician-facing)
       </h2>
       <p style={muted}>
-        The interactive flow, for a patient portal or a clinician-facing embedded app. This
-        package cannot perform the redirect and login/consent screen itself — that's a browser
-        step, inherent to the flow — but provides every other piece: building the authorization
-        URL with PKCE, exchanging the returned <code>code</code>, and refreshing afterward.
+        The interactive flow, for a patient portal or a clinician-facing embedded app. This package
+        cannot perform the redirect and login/consent screen itself — that's a browser step,
+        inherent to the flow — but provides every other piece: building the authorization URL with
+        PKCE, exchanging the returned <code>code</code>, and refreshing afterward.
       </p>
       <CodeBlock
         variants={[
@@ -184,8 +184,8 @@ const patient = await client.read("Patient", token.patient!);`,
       <p style={muted}>
         If the refresh token is ever rejected (revoked, expired) or was never granted (
         <code>offline_access</code> wasn't in <code>scope</code>), the next call throws{" "}
-        <code>GatewayError</code>/<code>REFRESH_TOKEN_UNAVAILABLE</code> instead of silently
-        failing at the FHIR request — the user needs to go through step 1 again.
+        <code>GatewayError</code>/<code>REFRESH_TOKEN_UNAVAILABLE</code> instead of silently failing
+        at the FHIR request — the user needs to go through step 1 again.
       </p>
 
       <h2 id="pkce" className="mt-8">
@@ -283,8 +283,8 @@ await client.cancelBulkExport(job); // DELETE the job if you need to stop it ear
       />
       <p style={muted}>
         <code>buildExportUrl()</code>/<code>parseCompletedExportBody()</code>/
-        <code>parseNdjson()</code> are exported standalone too, for building the
-        request/parsing the response yourself outside <code>SmartClient</code>.
+        <code>parseNdjson()</code> are exported standalone too, for building the request/parsing the
+        response yourself outside <code>SmartClient</code>.
       </p>
 
       <h2 id="write" className="mt-8">
@@ -325,10 +325,10 @@ const results = await client.writeBatch([
         ]}
       />
       <p style={muted}>
-        <code>create</code>/<code>update</code>/<code>delete</code> never throw for a
-        server-side rejection — they return a <code>WriteResult</code> so a caller can inspect
-        the outcome without a try/catch per call. They do throw <code>ScopeError</code> if the
-        resource type/operation isn't in <code>scopes</code>, before any network call.
+        <code>create</code>/<code>update</code>/<code>delete</code> never throw for a server-side
+        rejection — they return a <code>WriteResult</code> so a caller can inspect the outcome
+        without a try/catch per call. They do throw <code>ScopeError</code> if the resource
+        type/operation isn't in <code>scopes</code>, before any network call.
       </p>
 
       <h2 id="scope" className="mt-8">
@@ -336,16 +336,16 @@ const results = await client.writeBatch([
       </h2>
       <p style={muted}>
         <code>SmartClient</code> checks the <code>scopes</code> you configured before making any
-        request — a request outside those scopes throws <code>ScopeError</code> immediately,
-        before a network call is attempted, rather than relying on the server to reject it.
+        request — a request outside those scopes throws <code>ScopeError</code> immediately, before
+        a network call is attempted, rather than relying on the server to reject it.
       </p>
 
       <h2 id="internals" className="mt-8">
         Internals — build a custom connector variant
       </h2>
       <p style={muted}>
-        <code>SmartClient</code> is built from pieces also exported directly, for a custom
-        connector variant instead of <code>SmartClient</code> as-is.
+        <code>SmartClient</code> is built from pieces also exported directly, for a custom connector
+        variant instead of <code>SmartClient</code> as-is.
       </p>
       <CodeBlock
         variants={[

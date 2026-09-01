@@ -51,14 +51,16 @@ describe("formatHl7v2 (FormatPlugin)", () => {
     expect(formatHl7v2.name).toBe("hl7v2");
   });
 
-  it("toFhir() returns a parsed Bundle object, not a JSON string", () => {
-    const bundle = formatHl7v2.toFhir(ADT_A01_SAMPLE) as { resourceType: string };
-    expect(bundle.resourceType).toBe("Bundle");
+  it("toFhir()'s value is a parsed Bundle object, not a JSON string, alongside the mapping trail", () => {
+    const outcome = formatHl7v2.toFhir(ADT_A01_SAMPLE);
+    expect((outcome.value as { resourceType: string }).resourceType).toBe("Bundle");
+    expect(outcome.mappings.length).toBeGreaterThan(0);
+    expect(Array.isArray(outcome.warnings)).toBe(true);
   });
 
   it("fromFhir() serializes a Bundle object back into an HL7v2 message string", () => {
-    const bundle = formatHl7v2.toFhir(ADT_A01_SAMPLE);
-    const message = formatHl7v2.fromFhir(bundle);
-    expect(message.startsWith("MSH|")).toBe(true);
+    const toFhirOutcome = formatHl7v2.toFhir(ADT_A01_SAMPLE);
+    const fromFhirOutcome = formatHl7v2.fromFhir(toFhirOutcome.value);
+    expect((fromFhirOutcome.value as string).startsWith("MSH|")).toBe(true);
   });
 });

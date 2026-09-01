@@ -75,7 +75,10 @@ npm install @interop-gateway/mcp           # the MCP server, transitively pulls 
 import { InteropGateway, formatHl7v2 } from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
-const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+const result = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+result.value; // the FHIR Bundle
+result.mappings; // field-level mapping trail
+result.warnings; // segments/fields with no mapping
 ```
 
 ```ts
@@ -84,7 +87,10 @@ import { InteropGateway, formatHl7v2, type TranslateOptions } from "@interop-gat
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
-const bundle = gateway.translate(hl7v2Message, options);
+const result = gateway.translate(hl7v2Message, options);
+result.value; // the FHIR Bundle
+result.mappings; // field-level mapping trail
+result.warnings; // segments/fields with no mapping
 ```
 
 ```ts

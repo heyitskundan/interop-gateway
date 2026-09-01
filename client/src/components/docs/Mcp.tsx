@@ -54,10 +54,7 @@ export function Mcp() {
       <CodeBlock lang="bash" code="npx @interop-gateway/mcp" />
 
       <p className="text-sm font-medium mt-4 mb-1">Claude Code</p>
-      <CodeBlock
-        lang="bash"
-        code="claude mcp add interop-gateway -- npx -y @interop-gateway/mcp"
-      />
+      <CodeBlock lang="bash" code="claude mcp add interop-gateway -- npx -y @interop-gateway/mcp" />
 
       <p className="text-sm font-medium mt-4 mb-1">Claude Desktop</p>
       <p style={muted} className="text-sm mb-2">
@@ -86,8 +83,8 @@ export function Mcp() {
         2. Building from source (for contributing, or running an unreleased change)
       </h2>
       <p style={muted}>
-        To run against a change that hasn't shipped to npm yet, clone the repo and build the
-        package directly:
+        To run against a change that hasn't shipped to npm yet, clone the repo and build the package
+        directly:
       </p>
       <CodeBlock
         lang="bash"
@@ -106,7 +103,9 @@ npm run build -w packages/mcp`}
       />
       <p style={muted} className="text-sm">
         (Or{" "}
-        <code>{'{ "command": "node", "args": ["/absolute/path/to/.../packages/mcp/dist/cli.js"] }'}</code>{" "}
+        <code>
+          {'{ "command": "node", "args": ["/absolute/path/to/.../packages/mcp/dist/cli.js"] }'}
+        </code>{" "}
         in Claude Desktop's config, replacing the absolute path with wherever you cloned the repo.)
       </p>
 
@@ -116,13 +115,21 @@ npm run build -w packages/mcp`}
       <p className="text-sm font-medium mt-4 mb-2" style={muted}>
         Static — never leave the process
       </p>
-      <Tool name="translate" args={'{ format: "hl7v2" | "cda", payload: string }'} returns="the translated FHIR R4 Bundle as JSON text">
+      <Tool
+        name="translate"
+        args={'{ format: "hl7v2" | "cda", payload: string }'}
+        returns="the translated FHIR R4 Bundle as JSON text"
+      >
         On a translation failure, returns <code>isError: true</code> with the failure message as
         content instead of throwing.
       </Tool>
-      <Tool name="validate" args="{ payload: string }" returns="a StructuralValidationResult as JSON text">
-        Whether the input is a structurally well-formed HL7v2 message or C-CDA document, and why
-        not if it isn't.
+      <Tool
+        name="validate"
+        args="{ payload: string }"
+        returns="a StructuralValidationResult as JSON text"
+      >
+        Whether the input is a structurally well-formed HL7v2 message or C-CDA document, and why not
+        if it isn't.
       </Tool>
       <Tool
         name="validateUsCore"
@@ -140,13 +147,13 @@ npm run build -w packages/mcp`}
       </p>
       <Tool name="connect_ehr" args="{ baseUrl, auth, scopes }" returns="{ connectionId }">
         Opens a scope-checked <code>SmartClient</code> (backend-services auth —{" "}
-        <code>client_secret_post</code>/<code>private_key_jwt</code>) for{" "}
-        <code>read_resource</code>/<code>write_resource</code>/<code>start_bulk_export</code> to
-        reference. For the interactive, patient/clinician-facing SMART launch instead, use{" "}
+        <code>client_secret_post</code>/<code>private_key_jwt</code>) for <code>read_resource</code>
+        /<code>write_resource</code>/<code>start_bulk_export</code> to reference. For the
+        interactive, patient/clinician-facing SMART launch instead, use{" "}
         <code>start_smart_launch</code>/<code>complete_smart_launch</code> below. Makes no network
         call itself; <code>auth</code> travels as a tool argument, which most MCP clients
-        display/log as part of showing what the tool was called with — only use this with a
-        client you trust to handle that appropriately.
+        display/log as part of showing what the tool was called with — only use this with a client
+        you trust to handle that appropriately.
       </Tool>
       <Tool
         name="start_smart_launch"
@@ -177,7 +184,9 @@ npm run build -w packages/mcp`}
       </Tool>
       <Tool
         name="write_resource"
-        args={'{ connectionId, operation: "create"|"update"|"delete", resourceType, id?, resource? }'}
+        args={
+          '{ connectionId, operation: "create"|"update"|"delete", resourceType, id?, resource? }'
+        }
         returns="a WriteResult as JSON"
       >
         Never throws for a server-side rejection.
@@ -206,7 +215,11 @@ npm run build -w packages/mcp`}
       >
         Files can be large — the full text comes back as the result.
       </Tool>
-      <Tool name="cancel_bulk_export" args="{ connectionId, exportId }" returns="{ cancelled: true }">
+      <Tool
+        name="cancel_bulk_export"
+        args="{ connectionId, exportId }"
+        returns="{ cancelled: true }"
+      >
         Cancels a bulk export job before it completes.
       </Tool>
       <Tool
@@ -218,16 +231,15 @@ npm run build -w packages/mcp`}
       </Tool>
       <Tool name="run_pipeline" args="{ yamlConfig }" returns="{ pipelineId, name, address }">
         Starts an <code>engine</code> pipeline that keeps running after the call returns — call{" "}
-        <code>stop_pipeline</code> or it leaks a listening port/watcher for the life of the
-        process.
+        <code>stop_pipeline</code> or it leaks a listening port/watcher for the life of the process.
       </Tool>
       <Tool name="stop_pipeline" args="{ pipelineId }" returns="{ stopped: true }">
         Stops a pipeline started by <code>run_pipeline</code>.
       </Tool>
       <p style={muted} className="text-sm mt-4">
-        Connections, running pipelines, running bulk exports, and in-flight SMART launches all
-        live in memory, per server instance — not restored across a restart, and any id from one
-        server instance is meaningless to another.
+        Connections, running pipelines, running bulk exports, and in-flight SMART launches all live
+        in memory, per server instance — not restored across a restart, and any id from one server
+        instance is meaningless to another.
       </p>
 
       <h2 id="audit" className="mt-8">
@@ -236,9 +248,8 @@ npm run build -w packages/mcp`}
       <p style={muted}>
         Every tool call gets a correlation ID (<code>@interop-gateway/core</code>'s{" "}
         <code>createEnvelope</code>) and writes an audit entry — <code>who</code>:{" "}
-        <code>"mcp"</code>, <code>what</code> the tool name (suffixed <code>:rejected</code>{" "}
-        on failure), <code>resourceType</code> when known — to a resolved <code>AuditSink</code>{" "}
-        that{" "}
+        <code>"mcp"</code>, <code>what</code> the tool name (suffixed <code>:rejected</code> on
+        failure), <code>resourceType</code> when known — to a resolved <code>AuditSink</code> that{" "}
         <strong>
           defaults to a persisted, encrypted <code>FileAuditLog</code>
         </strong>{" "}

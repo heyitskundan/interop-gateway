@@ -176,10 +176,16 @@ just `@interop-gateway/core` still installs nothing MCP/AWS/Vault-related.
   `core/README.md`'s claim that `InteropGateway` would grow `connect()`/`read()`/
   `write()`/`send()` methods was also removed — that functionality lives in
   `connector`'s separate `SmartClient` class instead.
-- Still open: `translate()`'s discarded mapping trail (`translateHl7v2ToFhir`/
-  `translateFhirToHl7v2`/`translateCdaToFhir`/`translateFhirToCda` still needed for
-  that), no interactive demo for the connector/secrets/engine/mcp packages, and no npm
-  publish yet.
+- `core`: `InteropGateway.translate()` now returns `{ value, mappings, warnings }`
+  instead of the bare translated value. `FormatPlugin.toFhir()`/`fromFhir()` changed to
+  match — `mappings`/`warnings` keep whatever shape the registered plugin's own
+  translator produces (HL7v2 and CDA mapping trails have different fields; only the
+  outer envelope is uniform across formats). Closes the gap where the mapping trail was
+  only reachable by calling `translateHl7v2ToFhir`/`translateCdaToFhir` directly —
+  those still exist, now for their properly-typed per-format result instead of being
+  the only way to get a mapping trail at all.
+- Still open: no interactive demo for the connector/secrets/engine/mcp packages, and no
+  npm publish yet.
 
 ## v0.4.0
 

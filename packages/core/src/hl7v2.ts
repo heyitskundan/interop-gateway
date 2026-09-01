@@ -6,7 +6,7 @@ import {
   type TranslationResult,
 } from "hl7-fhir-translator";
 import { GatewayError } from "./errors.js";
-import type { FormatPlugin } from "./gateway.js";
+import type { FormatPlugin, TranslationOutcome } from "./gateway.js";
 
 export type { TranslationResult, Mapping, TranslationDirection } from "hl7-fhir-translator";
 
@@ -39,14 +39,21 @@ export function translateFromFhir(rawFhirJson: string): TranslationResult {
   }
 }
 
-/** `FormatPlugin` for HL7v2. `toFhir()` returns a parsed FHIR Bundle object; `fromFhir()`
- * returns a serialized HL7v2 message string. */
+/** `FormatPlugin` for HL7v2. `toFhir()`'s `value` is a parsed FHIR Bundle object;
+ * `fromFhir()`'s `value` is a serialized HL7v2 message string. Both carry the mapping
+ * trail and warnings from the underlying `hl7-fhir-translator` call. */
 export const formatHl7v2: FormatPlugin = {
   name: "hl7v2",
-  toFhir(input: string): unknown {
-    return JSON.parse(translateToFhir(input).translated);
+  toFhir(input: string): TranslationOutcome {
+    const result = translateToFhir(input);
+    return {
+      value: JSON.parse(result.translated),
+      mappings: result.mappings,
+      warnings: result.warnings,
+    };
   },
-  fromFhir(bundle: unknown): string {
-    return translateFromFhir(JSON.stringify(bundle)).translated;
+  fromFhir(bundle: unknown): TranslationOutcome {
+    const result = translateFromFhir(JSON.stringify(bundle));
+    return { value: result.translated, mappings: result.mappings, warnings: result.warnings };
   },
 };

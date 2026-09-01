@@ -9,8 +9,8 @@ export function Secrets() {
         @interop-gateway/secrets
       </h1>
       <p style={muted}>
-        Three <code>SecretsProvider</code> (from <code>@interop-gateway/core</code>)
-        implementations — pick per environment.
+        Three <code>SecretsProvider</code> (from <code>@interop-gateway/core</code>) implementations
+        — pick per environment.
       </p>
 
       <h2 id="install" className="mt-8">
@@ -22,9 +22,9 @@ export function Secrets() {
         Keychain — development default
       </h2>
       <p style={muted}>
-        Backed by the local OS keychain — macOS Keychain via the <code>security</code> CLI,
-        Linux Secret Service via <code>secret-tool</code>. Production deployments should use
-        Vault or AWS below instead.
+        Backed by the local OS keychain — macOS Keychain via the <code>security</code> CLI, Linux
+        Secret Service via <code>secret-tool</code>. Production deployments should use Vault or AWS
+        below instead.
       </p>
       <CodeBlock
         variants={[
@@ -76,11 +76,10 @@ const value = await secrets.getSecret({ name: "epic-sandbox-client-secret" });`,
       </table>
       <p style={muted} className="text-sm">
         <strong>Known limitation:</strong> on macOS, the secret value is passed to{" "}
-        <code>security add-generic-password -w &lt;value&gt;</code> as a process argument, which
-        is briefly visible to other processes on the same machine via <code>ps</code>. That's an
-        acceptable trade-off for a local development credential store — it is not an acceptable
-        one for production secrets, which is why this provider is documented as the dev-only
-        default.
+        <code>security add-generic-password -w &lt;value&gt;</code> as a process argument, which is
+        briefly visible to other processes on the same machine via <code>ps</code>. That's an
+        acceptable trade-off for a local development credential store — it is not an acceptable one
+        for production secrets, which is why this provider is documented as the dev-only default.
       </p>
 
       <h2 id="vault" className="mt-8">
@@ -126,12 +125,11 @@ await secrets.deleteSecret({ name: "epic-client-secret" });`,
         ]}
       />
       <p style={muted}>
-        Each <code>SecretRef.name</code> maps to one KV v2 path, storing the value under a
-        fixed <code>value</code> key. <code>vaultAddr</code> must be <code>https://</code> — the
+        Each <code>SecretRef.name</code> maps to one KV v2 path, storing the value under a fixed{" "}
+        <code>value</code> key. <code>vaultAddr</code> must be <code>https://</code> — the
         constructor throws <code>GatewayError</code> immediately for any other scheme.{" "}
         <code>deleteSecret</code> soft-deletes the latest version through the KV v2{" "}
-        <code>data</code> endpoint, which Vault's own <code>vault kv undelete</code> can
-        reverse.
+        <code>data</code> endpoint, which Vault's own <code>vault kv undelete</code> can reverse.
       </p>
 
       <h2 id="aws" className="mt-8">
@@ -142,8 +140,7 @@ await secrets.deleteSecret({ name: "epic-client-secret" });`,
         <a href="https://github.com/mhart/aws4fetch" target="_blank" rel="noreferrer">
           aws4fetch
         </a>{" "}
-        rather than pulling in the full AWS SDK, to keep this package's dependency footprint
-        small.
+        rather than pulling in the full AWS SDK, to keep this package's dependency footprint small.
       </p>
       <CodeBlock
         variants={[
@@ -184,11 +181,11 @@ await secrets.deleteSecret({ name: "epic-client-secret" });`,
         ]}
       />
       <p style={muted}>
-        <code>setSecret</code> calls <code>PutSecretValue</code> first — the common case, where
-        the secret already exists — and only falls back to <code>CreateSecret</code> on a{" "}
-        <code>ResourceNotFoundException</code>. <code>deleteSecret</code> uses AWS's default
-        30-day recovery window rather than <code>ForceDeleteWithoutRecovery</code>, so a delete
-        is reversible through the AWS Console/CLI unless your IAM policy is configured to force
+        <code>setSecret</code> calls <code>PutSecretValue</code> first — the common case, where the
+        secret already exists — and only falls back to <code>CreateSecret</code> on a{" "}
+        <code>ResourceNotFoundException</code>. <code>deleteSecret</code> uses AWS's default 30-day
+        recovery window rather than <code>ForceDeleteWithoutRecovery</code>, so a delete is
+        reversible through the AWS Console/CLI unless your IAM policy is configured to force
         immediate deletion. Binary secrets (<code>SecretBinary</code>) aren't supported —{" "}
         <code>getSecret</code> throws <code>GatewayError</code> if the stored secret has no{" "}
         <code>SecretString</code>.

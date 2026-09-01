@@ -3,11 +3,21 @@ import { validateStructural } from "./validate.js";
 
 export type FormatName = "hl7v2" | "cda";
 
+/** `value` is the FHIR bundle (object) for `toFhir()`, the serialized message/document
+ * (string) for `fromFhir()`. `mappings`/`warnings` entries keep the shape each format's
+ * own translator produces — HL7v2 and CDA mapping trails carry different fields, so this
+ * only unifies the outer envelope, not the per-entry shape. */
+export interface TranslationOutcome {
+  readonly value: unknown;
+  readonly mappings: readonly unknown[];
+  readonly warnings: readonly unknown[];
+}
+
 /** Converts a raw message to a FHIR resource and back. */
 export interface FormatPlugin {
   readonly name: FormatName;
-  toFhir(input: string): unknown;
-  fromFhir(bundle: unknown): string;
+  toFhir(input: string): TranslationOutcome;
+  fromFhir(bundle: unknown): TranslationOutcome;
 }
 
 export type TranslateOptions =
@@ -30,7 +40,7 @@ export class InteropGateway {
     return validateStructural(input);
   }
 
-  translate(input: string, options: TranslateOptions): unknown {
+  translate(input: string, options: TranslateOptions): TranslationOutcome {
     if (options.to === "fhir") {
       const structural = validateStructural(input);
       if (!structural.valid) {

@@ -23,9 +23,9 @@ export function GettingStarted({ goPackages }: { goPackages: () => void }) {
       </h2>
       <p style={muted}>
         Six packages, each independently installable, with real npm <code>dependencies</code>{" "}
-        declared between them wherever one genuinely needs another — install only what you need.
-        The translation half (<code>@interop-gateway/core</code>) wraps two
-        separately-published, independently-tested packages —{" "}
+        declared between them wherever one genuinely needs another — install only what you need. The
+        translation half (<code>@interop-gateway/core</code>) wraps two separately-published,
+        independently-tested packages —{" "}
         <a
           href="https://github.com/heyitskundan/hl7-fhir-translator"
           target="_blank"
@@ -77,15 +77,21 @@ export function GettingStarted({ goPackages }: { goPackages: () => void }) {
             code: `import { InteropGateway, formatHl7v2 } from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
-const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });`,
+const result = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+result.value; // the FHIR Bundle`,
           },
           {
             lang: "ts",
-            code: `import { InteropGateway, formatHl7v2, type TranslateOptions } from "@interop-gateway/core";
+            code: `import {
+  InteropGateway,
+  formatHl7v2,
+  type TranslateOptions,
+} from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
-const bundle = gateway.translate(hl7v2Message, options);`,
+const result = gateway.translate(hl7v2Message, options);
+result.value; // the FHIR Bundle`,
           },
         ]}
       />
@@ -120,8 +126,8 @@ const bundle = gateway.translate(hl7v2Message, options);`,
           <div className="mb-1 flex items-center gap-2">
             <span className="tag tag-accent">PHI</span>
             <strong style={{ fontFamily: "var(--font-heading)", fontSize: 15 }}>
-              This package helps you build a compliant system — it doesn&apos;t make you
-              compliant on its own
+              This package helps you build a compliant system — it doesn&apos;t make you compliant
+              on its own
             </strong>
           </div>
           <p className="mb-2 text-sm" style={muted}>
@@ -132,8 +138,8 @@ const bundle = gateway.translate(hl7v2Message, options);`,
           </p>
           <p className="text-sm" style={muted}>
             What the library does concretely: enforces TLS everywhere; writes a tamper-evident audit
-            entry for every <code>engine</code>/<code>mcp</code> call, persisted to disk by
-            default and refusing to persist unencrypted unless you explicitly opt out (
+            entry for every <code>engine</code>/<code>mcp</code> call, persisted to disk by default
+            and refusing to persist unencrypted unless you explicitly opt out (
             <code>ephemeral: true</code> for tests, <code>allowUnencryptedPersistence: true</code>{" "}
             to consciously accept plaintext-on-disk) — the same rule applies to a dead-letter queue
             once you configure one; checks SMART scopes before every read/write; never logs a PHI

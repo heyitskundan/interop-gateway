@@ -254,12 +254,7 @@ export async function createInteropGatewayMcpServer(
   options: CreateInteropGatewayMcpServerOptions = {},
 ): Promise<McpServer> {
   const gateway = new InteropGateway({ formats: [formatHl7v2, formatCda] });
-  const auditSink = await resolveAuditSink(
-    "mcp",
-    options.persistence,
-    options.auditSink,
-    options,
-  );
+  const auditSink = await resolveAuditSink("mcp", options.persistence, options.auditSink, options);
   const defaultDeadLetterQueue = await resolveDeadLetterQueue(
     "mcp",
     options.persistence,
@@ -307,7 +302,7 @@ export async function createInteropGatewayMcpServer(
     async ({ format, payload }) => {
       const { correlationId } = createEnvelope(payload, "mcp:translate");
       try {
-        const fhir = gateway.translate(payload, { from: format, to: "fhir" });
+        const fhir = gateway.translate(payload, { from: format, to: "fhir" }).value;
         const resourceType = (fhir as { resourceType?: string } | null)?.resourceType;
         await audit(correlationId, "translate", resourceType);
         return { content: [{ type: "text" as const, text: JSON.stringify(fhir, null, 2) }] };

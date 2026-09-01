@@ -10,14 +10,14 @@ export function Engine() {
       </h1>
       <p style={muted}>
         Deployable pipeline runtime — wires a protocol source, a format translator, and a
-        destination together from one YAML config, so running a translation pipeline doesn't
-        require writing any code.
+        destination together from one YAML config, so running a translation pipeline doesn't require
+        writing any code.
       </p>
       <p style={muted}>
         One source, one format — but destinations can be a single unconditional{" "}
-        <code>destination</code> <em>or</em> a list of <code>routes</code>, each matched against
-        the translated resource in order, first match wins, fanning out to every destination in
-        that rule.
+        <code>destination</code> <em>or</em> a list of <code>routes</code>, each matched against the
+        translated resource in order, first match wins, fanning out to every destination in that
+        rule.
       </p>
 
       <h2 id="install" className="mt-8">
@@ -80,8 +80,8 @@ validateProfile: true # optional, default false — runs US Core validation befo
       </h2>
       <p style={muted}>
         Exactly one of <code>destination</code>/<code>routes</code> must be set —{" "}
-        <code>destination</code> for the simple unconditional case above, <code>routes</code>{" "}
-        for conditional branching and fan-out:
+        <code>destination</code> for the simple unconditional case above, <code>routes</code> for
+        conditional branching and fan-out:
       </p>
       <CodeBlock
         lang="yaml"
@@ -104,9 +104,9 @@ routes:
       />
       <p style={muted}>
         Rules are tried in order; the first rule whose <code>when</code> matches delivers to{" "}
-        <em>every</em> destination in its <code>to</code> list (fan-out — not just the first
-        one). Omit <code>when</code> for a catch-all/default rule. A message matching no rule is
-        a delivery failure — same failure channel as anything else.
+        <em>every</em> destination in its <code>to</code> list (fan-out — not just the first one).
+        Omit <code>when</code> for a catch-all/default rule. A message matching no rule is a
+        delivery failure — same failure channel as anything else.
       </p>
 
       <h2 id="persistence" className="mt-8">
@@ -115,15 +115,14 @@ routes:
       <p style={muted}>
         <code>runPipeline()</code> persists the audit log to disk by default, next to the config
         file. The dead-letter queue stays opt-in to <em>have</em> — set{" "}
-        <code>persistence.deadLetter</code> if you want one — but the CLI's <code>run</code>{" "}
-        command always creates one by default, since a deployed pipeline should retain its dead
-        letters.
+        <code>persistence.deadLetter</code> if you want one — but the CLI's <code>run</code> command
+        always creates one by default, since a deployed pipeline should retain its dead letters.
       </p>
       <p style={muted}>
         <strong>Persisting without encryption is refused by default.</strong> Set{" "}
         <code>persistence.&lt;audit|deadLetter&gt;.encryptPassphrase</code>, or the whole thing
-        throws <code>GatewayError</code>/<code>UNENCRYPTED_PERSISTENCE_REFUSED</code> before
-        writing anything:
+        throws <code>GatewayError</code>/<code>UNENCRYPTED_PERSISTENCE_REFUSED</code> before writing
+        anything:
       </p>
       <CodeBlock
         lang="yaml"
@@ -149,15 +148,13 @@ await runPipeline(config, { allowUnencryptedPersistence: true }); // persists as
           },
         ]}
       />
-      <p style={muted}>
-        Replay everything currently in the dead-letter queue:
-      </p>
+      <p style={muted}>Replay everything currently in the dead-letter queue:</p>
       <CodeBlock lang="bash" code="npx @interop-gateway/engine replay pipeline.yaml" />
       <p style={muted}>
-        Re-runs each queued message through the same translate/validate/route/deliver handler a
-        live pipeline uses. A message that succeeds is removed from the queue; one that fails
-        again stays queued with <code>attempts</code> incremented, so a message stuck failing
-        repeatedly stays visible for triage instead of retrying silently forever.
+        Re-runs each queued message through the same translate/validate/route/deliver handler a live
+        pipeline uses. A message that succeeds is removed from the queue; one that fails again stays
+        queued with <code>attempts</code> incremented, so a message stuck failing repeatedly stays
+        visible for triage instead of retrying silently forever.
       </p>
 
       <h2 id="cli" className="mt-8">

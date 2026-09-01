@@ -7,7 +7,7 @@ import {
   type TranslateToCdaResult,
 } from "cda-fhir-translator";
 import { GatewayError } from "./errors.js";
-import type { FormatPlugin } from "./gateway.js";
+import type { FormatPlugin, TranslationOutcome } from "./gateway.js";
 
 export type { TranslateResult, TranslateToCdaResult, FhirBundle } from "cda-fhir-translator";
 
@@ -39,14 +39,17 @@ export function translateFromFhir(bundle: FhirBundle): TranslateToCdaResult {
   }
 }
 
-/** `FormatPlugin` for C-CDA. `toFhir()` returns a parsed FHIR Bundle object; `fromFhir()`
- * returns a serialized C-CDA XML string. */
+/** `FormatPlugin` for C-CDA. `toFhir()`'s `value` is a parsed FHIR Bundle object;
+ * `fromFhir()`'s `value` is a serialized C-CDA XML string. Both carry the mapping trace
+ * and warnings from the underlying `cda-fhir-translator` call. */
 export const formatCda: FormatPlugin = {
   name: "cda",
-  toFhir(input: string): unknown {
-    return translateToFhir(input).bundle;
+  toFhir(input: string): TranslationOutcome {
+    const result = translateToFhir(input);
+    return { value: result.bundle, mappings: result.mappings, warnings: result.warnings };
   },
-  fromFhir(bundle: unknown): string {
-    return translateFromFhir(bundle as FhirBundle).xml;
+  fromFhir(bundle: unknown): TranslationOutcome {
+    const result = translateFromFhir(bundle as FhirBundle);
+    return { value: result.xml, mappings: result.mappings, warnings: result.warnings };
   },
 };

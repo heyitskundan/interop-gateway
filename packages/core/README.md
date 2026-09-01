@@ -21,7 +21,10 @@ npm install @interop-gateway/core
 import { InteropGateway, formatHl7v2 } from "@interop-gateway/core";
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
-const bundle = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+const result = gateway.translate(hl7v2Message, { from: "hl7v2", to: "fhir" });
+result.value; // the FHIR Bundle
+result.mappings; // field-level mapping trail
+result.warnings; // segments/fields with no mapping
 ```
 
 ```ts
@@ -30,7 +33,10 @@ import { InteropGateway, formatHl7v2, type TranslateOptions } from "@interop-gat
 
 const gateway = new InteropGateway({ formats: [formatHl7v2] });
 const options: TranslateOptions = { from: "hl7v2", to: "fhir" };
-const bundle = gateway.translate(hl7v2Message, options);
+const result = gateway.translate(hl7v2Message, options);
+result.value; // the FHIR Bundle
+result.mappings; // field-level mapping trail
+result.warnings; // segments/fields with no mapping
 ```
 
 Swap in `formatCda` and `from: "cda"` for C-CDA XML — same call shape, same gateway
@@ -38,10 +44,11 @@ instance can hold both.
 
 ## Use — translators directly
 
-Both translators export their own richer functions too, returning the underlying
-package's field-level mapping trail that `InteropGateway.translate()` discards for a
-uniform return type. Aliased here since both wrap packages that otherwise export the
-same names (`translateToFhir`/`translateFromFhir`):
+Both translators export their own functions too, for the properly-typed per-format
+result (`TranslationResult`'s `Mapping[]`, `TranslateResult`'s `MappingTraceEntry[]`)
+instead of `InteropGateway.translate()`'s format-agnostic `readonly unknown[]`. Aliased
+here since both wrap packages that otherwise export the same names
+(`translateToFhir`/`translateFromFhir`):
 
 ```ts
 import { translateHl7v2ToFhir, translateFhirToHl7v2 } from "@interop-gateway/core";

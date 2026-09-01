@@ -152,7 +152,7 @@ function makeHandler(
 
     let fhir: unknown;
     try {
-      fhir = gateway.translate(raw, { from: config.format, to: "fhir" });
+      fhir = gateway.translate(raw, { from: config.format, to: "fhir" }).value;
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       await audit("translate:rejected");
