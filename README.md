@@ -50,22 +50,19 @@ require any of that.
 
 ## Install
 
-**Not yet published to npm** — the `@interop-gateway` scope 404s on the registry today.
-The commands below will work once publishing happens; until then, build from source:
+```bash
+npm install @interop-gateway/core          # translation + validation only
+npm install @interop-gateway/core @interop-gateway/connector   # + live FHIR connectivity
+npm install @interop-gateway/mcp           # the MCP server, transitively pulls core/protocol/connector/engine
+```
+
+To build from source instead:
 
 ```bash
 git clone https://github.com/heyitskundan/interop-gateway.git
 cd interop-gateway
 npm install
 npm run build   # every package, in dependency order, + client
-```
-
-Then `npm link` the package(s) you need into your own project. Once published:
-
-```bash
-npm install @interop-gateway/core          # translation + validation only
-npm install @interop-gateway/core @interop-gateway/connector   # + live FHIR connectivity
-npm install @interop-gateway/mcp           # the MCP server, transitively pulls core/protocol/connector/engine
 ```
 
 ## Quick start
